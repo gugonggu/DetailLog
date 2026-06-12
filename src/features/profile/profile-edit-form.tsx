@@ -83,7 +83,7 @@ export function ProfileEditForm({
 
   return (
     <form
-      className="rounded-md border border-border bg-white p-5 shadow-sm"
+      className="surface-card p-5 sm:p-6"
       onSubmit={handleSubmit(onSubmit)}
     >
       <div>
@@ -96,7 +96,7 @@ export function ProfileEditForm({
       <label className="mt-5 block text-sm font-medium">
         닉네임
         <input
-          className="mt-2 h-11 w-full rounded-md border border-border px-3 text-sm outline-none transition focus:border-primary"
+          className="field-control"
           type="text"
           autoComplete="nickname"
           {...register("nickname")}
@@ -118,7 +118,7 @@ export function ProfileEditForm({
       ) : null}
 
       <button
-        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="primary-action mt-5 w-full sm:w-auto"
         type="submit"
         disabled={isSubmitting}
       >

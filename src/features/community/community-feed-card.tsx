@@ -23,7 +23,7 @@ function formatDate(value: string) {
 
 export function CommunityFeedCard({ item, currentUserId }: CommunityFeedCardProps) {
   return (
-    <article className="overflow-hidden rounded-md border border-border bg-white shadow-sm transition hover:border-primary">
+    <article className="surface-card overflow-hidden transition hover:-translate-y-0.5 hover:border-primary">
       <Link href={`/community/${item.id}`}>
         <div className="relative aspect-[4/3] bg-muted">
           {item.representativeImage ? (
@@ -50,7 +50,7 @@ export function CommunityFeedCard({ item, currentUserId }: CommunityFeedCardProp
                 {getAuthorNickname(item.author)}
               </p>
             </div>
-            <span className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-primary">
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
               공개
             </span>
           </div>
@@ -63,11 +63,11 @@ export function CommunityFeedCard({ item, currentUserId }: CommunityFeedCardProp
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-md border border-border p-3">
+            <div className="rounded-xl bg-muted/60 p-3">
               <p className="text-xs font-semibold text-muted-foreground">오염도</p>
               <p className="mt-1 font-semibold">{item.dirtLevel}/5</p>
             </div>
-            <div className="rounded-md border border-border p-3">
+            <div className="rounded-xl bg-muted/60 p-3">
               <p className="text-xs font-semibold text-muted-foreground">만족도</p>
               <p className="mt-1 flex items-center gap-1 font-semibold">
                 <Star className="h-4 w-4 text-accent" aria-hidden="true" />

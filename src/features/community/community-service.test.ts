@@ -97,4 +97,22 @@ describe("community service", () => {
       bookmarkedByCurrentUser: true,
     });
   });
+
+  it("drops private wash logs from feed rows", () => {
+    const privateWashLog = {
+      ...basePublicWashLogRow,
+      visibility: "private" as const,
+    };
+
+    expect(mapCommunityFeedRows([privateWashLog], profiles)).toEqual([]);
+  });
+
+  it("returns null for a private community detail row", () => {
+    const privateWashLog = {
+      ...basePublicWashLogRow,
+      visibility: "private" as const,
+    };
+
+    expect(mapCommunityDetailRow(privateWashLog, profiles[0])).toBeNull();
+  });
 });

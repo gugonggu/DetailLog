@@ -16,6 +16,13 @@ Route groups keep the URL clean while allowing each area to gain its own layout 
 
 Feature code lives under `src/features`. Each feature can own its components, forms, schemas, hooks, and service helpers. Shared UI primitives live under `src/components/ui`, and cross-feature utilities live under `src/lib`.
 
+The shared UI layer intentionally stays small. `PageHeader` standardizes page hierarchy,
+the state components standardize empty, error, and loading surfaces, and
+`AppNavigation` owns only the responsive navigation interaction. Business logic and
+feature-specific form behavior remain inside their feature folders. The signed-in app
+layout keeps server-side authentication while delegating only the mobile hamburger
+menu state to the client navigation component.
+
 ## Auth Boundary
 
 Supabase Auth is connected through small utilities under `src/lib/supabase`:
@@ -31,6 +38,11 @@ When middleware sends a user to `/login` with `redirectedFrom`, successful login
 Signup stores `nickname` in Supabase Auth user metadata and prepares a matching `profiles` row. When Supabase returns an active session immediately after signup, the client performs a small `profiles` upsert fallback. For email-confirmation signup flows, the reliable creation path is the Supabase database trigger documented in `docs/profile-setup.md`.
 
 The `/profile` route reads the current user's own `profiles` row on the server and lets the user edit only `nickname` through a React Hook Form + Zod form. It intentionally does not include public profile pages, avatar upload, or shared community profile behavior.
+
+애플리케이션 쿼리는 소유권과 공개 범위 필터를 명시하지만, 브라우저 요청은
+변조될 수 있으므로 이 필터가 최종 인가 경계는 아닙니다. 연결된 모든 테이블과
+Storage 변경 작업에는 Supabase RLS가 필요합니다. 필수 정책 기준안과 열 단위
+비공개 제한 사항은 `docs/security-rls.md`에 정리합니다.
 
 ## Dashboard
 
@@ -62,6 +74,17 @@ Wash log CRUD is implemented under `src/features/wash-logs`. The route surface i
 
 The app queries `wash_logs` with `user_id` filters for list, detail, edit, update, and delete flows. `wash_steps` are managed as ordered child rows of a wash log; edit currently replaces the step set after updating the parent log. This keeps the MVP implementation small and reviewable while preserving ordered multi-step records.
 
+세차 기록 생성 및 수정 전에 제출된 `car_id`가 현재 사용자의 서버 필터링 차량
+목록에 포함되는지 확인합니다. 변조된 요청을 애플리케이션에서 먼저 거부하기
+위한 검사이며, 최종 RLS 정책도 `wash_logs.user_id = auth.uid()`와 참조 차량
+소유권을 모두 확인해야 합니다.
+
+The `/wash` list supports basic server-side filtering through URL search params:
+`keyword`, `car`, `visibility`, `dirtLevel`, `satisfaction`, `from`, and `to`.
+The keyword filter searches `title`, `location`, and `memo`. Filter forms use a
+plain GET request so filtered views can be refreshed, shared, and revisited without
+client-side state.
+
 Required persistence shape:
 
 - `wash_logs`: `id`, `user_id`, `car_id`, `title`, `wash_date`, `location`, `duration_minutes`, `cost`, `weather`, `dirt_level`, `satisfaction`, `memo`, `visibility`, `created_at`, `updated_at`
@@ -71,6 +94,11 @@ Required persistence shape:
 Recommended constraints are `visibility in ('private', 'public')`, rating values from `1` to `5`, non-negative `cost`, positive `duration_minutes`, `wash_logs.car_id` referencing `cars(id)`, `wash_steps.wash_log_id` referencing `wash_logs(id)` with cascade delete, `wash_images.wash_log_id` referencing `wash_logs(id)` with cascade delete, and `image_type in ('before', 'after', 'process', 'etc')`. A partial unique index on `wash_images(wash_log_id) where is_representative = true` keeps one representative image per wash log. Supabase Row Level Security remains required: users can manage only `wash_logs` where `user_id = auth.uid()`, and `wash_steps` and `wash_images` access should be limited through ownership of the parent `wash_logs` row.
 
 Wash images are uploaded to Supabase Storage bucket `wash-images` using the object path `{userId}/{washLogId}/{timestamp}-{randomId}.{ext}`. The first path segment supports Storage policies that allow users to manage only their own objects. The app stores the resulting public object URL in `wash_images.image_url` and keeps metadata in the database.
+
+현재 public bucket 방식에서는 object URL을 알고 있는 사용자가 private 세차
+이미지를 직접 열 수 있습니다. 이미지 자체를 비공개로 보장하려면 private
+bucket과 서버 발급 signed URL이 필요하며, 이번 최소 인가 보강과 섞지 않고
+별도 아키텍처 변경으로 남깁니다.
 
 ## AI Routine Recommendations
 
@@ -100,6 +128,15 @@ Community queries always use `wash_logs.visibility = 'public'` as the database f
 The mapper also drops any non-public row before rendering, so private wash logs do not
 appear even if a query shape changes later. Detail pages use both `id` and
 `visibility = 'public'`; a private or missing record resolves to `notFound()`.
+
+community mapper가 private 행을 제거하는 동작은 회귀 테스트로 보호합니다.
+RLS에서도 소유자가 아닌 사용자의 wash log, step, image 조회는 부모의
+`visibility = 'public'`인 경우로 제한해야 합니다.
+
+The `/community` feed supports basic server-side filters through the `keyword`,
+`dirtLevel`, and `satisfaction` URL search params. The feed remains ordered by
+`wash_date` and `created_at` descending as the MVP's latest order. Advanced search,
+popularity sorting, and pagination remain out of scope.
 
 The feed query reads public `wash_logs` with `cars` and `wash_images`, then fetches
 matching `profiles` rows by `user_id` in a second query. This avoids requiring an

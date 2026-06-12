@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createWashLogInsertPayload,
   createWashLogUpdatePayload,
+  isOwnedCarId,
   mapWashLogRowToWashLog,
 } from "./wash-log-service";
 import { washLogFormSchema } from "./schemas";
@@ -172,6 +173,13 @@ describe("wash log schemas", () => {
         step_order: 1,
       },
     ]);
+  });
+
+  it("accepts only car ids from the signed-in user's scoped car options", () => {
+    const cars = [{ id: "owned-car-id" }, { id: "second-owned-car-id" }];
+
+    expect(isOwnedCarId("owned-car-id", cars)).toBe(true);
+    expect(isOwnedCarId("other-user-car-id", cars)).toBe(false);
   });
 
   it("maps a joined database row to the feature wash log type", () => {

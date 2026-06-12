@@ -13,6 +13,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import {
   getDashboardMonthRange,
   summarizeMonthlyWashLogs,
@@ -163,45 +165,33 @@ export default async function DashboardPage() {
   const hasAnyData = totalCarCount > 0 || totalWashLogCount > 0 || Boolean(recentRoutine);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">Dashboard</p>
-          <h1 className="mt-3 text-3xl font-bold">대시보드</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            내 차량, 세차 기록, AI 루틴을 한눈에 확인하고 다음 작업으로 바로 이동합니다.
-          </p>
-        </div>
-      </section>
+    <main className="page-shell">
+      <PageHeader
+        eyebrow="Dashboard"
+        title="대시보드"
+        description="내 차량, 세차 기록, AI 루틴을 한눈에 확인하고 다음 작업으로 바로 이동합니다."
+      />
 
       {queryErrors.length > 0 ? (
-        <section className="mt-8 rounded-md border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
-          <h2 className="font-semibold">대시보드 정보를 불러오지 못했습니다.</h2>
-          <ul className="mt-2 space-y-1">
+        <ErrorState
+          className="mt-8"
+          title="대시보드 정보를 불러오지 못했습니다."
+          details={<ul className="space-y-1">
             {queryErrors.map((error) => (
               <li key={error.message}>{error.message}</li>
             ))}
-          </ul>
-        </section>
+          </ul>}
+        />
       ) : null}
 
       {!queryErrors.length && !hasAnyData ? (
-        <section className="mt-8 rounded-md border border-border bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted text-primary">
-            <CarFront className="h-7 w-7" aria-hidden="true" />
-          </div>
-          <h2 className="mt-5 text-xl font-semibold">아직 관리할 데이터가 없습니다.</h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            첫 차량을 등록하면 세차 기록과 AI 루틴을 차량 기준으로 모아볼 수 있습니다.
-          </p>
-          <Link
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
-            href="/cars/new"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            차량 추가
-          </Link>
-        </section>
+        <EmptyState
+          className="mt-8"
+          icon={<CarFront className="h-7 w-7" aria-hidden="true" />}
+          title="아직 관리할 데이터가 없습니다."
+          description="첫 차량을 등록하면 세차 기록과 AI 루틴을 차량 기준으로 모아볼 수 있습니다."
+          action={<Link className="primary-action" href="/cars/new"><Plus className="h-4 w-4" aria-hidden="true" />차량 추가</Link>}
+        />
       ) : null}
 
       {!queryErrors.length ? (
@@ -237,15 +227,15 @@ export default async function DashboardPage() {
             />
           </section>
 
-          <section className="mt-6 rounded-md border border-border bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">빠른 실행</h2>
+          <section className="surface-card mt-6 p-5 sm:p-6">
+            <h2 className="text-lg font-bold">빠른 실행</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
 
                 return (
                   <Link
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition hover:border-primary hover:text-primary"
+                    className="secondary-action"
                     href={action.href}
                     key={action.href}
                   >
@@ -270,7 +260,7 @@ type SummaryCardProps = {
 
 function SummaryCard({ icon, label, value }: SummaryCardProps) {
   return (
-    <article className="rounded-md border border-border bg-white p-5 shadow-sm">
+    <article className="surface-card p-5 sm:p-6">
       <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
         {icon}
         {label}
@@ -282,7 +272,7 @@ function SummaryCard({ icon, label, value }: SummaryCardProps) {
 
 function RecentWashLogCard({ washLog }: { washLog: WashLog | null }) {
   return (
-    <article className="rounded-md border border-border bg-white p-5 shadow-sm">
+    <article className="surface-card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">최근 세차 기록</p>
@@ -327,7 +317,7 @@ function RecentRoutineCard({
   validationError: string;
 }) {
   return (
-    <article className="rounded-md border border-border bg-white p-5 shadow-sm">
+    <article className="surface-card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">최근 AI 루틴</p>
@@ -369,7 +359,7 @@ function RecentRoutineCard({
 
 function SmallMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="rounded-xl bg-muted/60 p-3">
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
       <p className="mt-2 text-sm font-semibold">{value}</p>
     </div>

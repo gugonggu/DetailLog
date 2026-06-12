@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+import { getAuthErrorMessage } from "./auth-error";
 import { AuthMessage } from "./auth-message";
 import {
   createSignupProfileMetadata,
@@ -49,42 +50,46 @@ export function SignupForm({ isSupabaseConfigured }: SignupFormProps) {
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: createSignupProfileMetadata(values.nickname),
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: createSignupProfileMetadata(values.nickname),
+        },
+      });
 
-    if (error) {
-      setFormError(error.message);
-      return;
-    }
-
-    if (data.user && data.session) {
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        createProfileUpsertPayload({
-          userId: data.user.id,
-          email: data.user.email ?? values.email,
-          nickname: values.nickname,
-        }),
-        { onConflict: "id" },
-      );
-
-      if (profileError) {
-        setFormError(profileError.message);
+      if (error) {
+        setFormError(getAuthErrorMessage(error.message));
         return;
       }
-    }
 
-    if (data.session) {
-      router.replace("/dashboard");
-      router.refresh();
-      return;
-    }
+      if (data.user && data.session) {
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          createProfileUpsertPayload({
+            userId: data.user.id,
+            email: data.user.email ?? values.email,
+            nickname: values.nickname,
+          }),
+          { onConflict: "id" },
+        );
 
-    setSuccessMessage("가입 확인 메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.");
+        if (profileError) {
+          setFormError(getAuthErrorMessage(profileError.message));
+          return;
+        }
+      }
+
+      if (data.session) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setSuccessMessage("가입 확인 메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.");
+    } catch (error) {
+      setFormError(getAuthErrorMessage(error));
+    }
   }
 
   return (

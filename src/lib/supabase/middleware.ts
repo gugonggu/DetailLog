@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import { getSupabasePublicConfig } from "./config";
+import { createSupabaseFetch } from "./fetch";
 
 const protectedPrefixes = [
   "/dashboard",
@@ -37,6 +38,9 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(config.url, config.anonKey, {
+    global: {
+      fetch: createSupabaseFetch(),
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();

@@ -24,6 +24,10 @@ type WashLogInsertPayloadSet = {
   steps: Omit<WashStepInsertPayload, "wash_log_id">[];
 };
 
+type CarIdOption = {
+  id: string;
+};
+
 function nullableText(value: string) {
   const trimmed = value.trim();
 
@@ -37,6 +41,10 @@ function createStepPayloads(values: WashLogFormValues) {
     memo: nullableText(step.memo),
     step_order: index + 1,
   }));
+}
+
+export function isOwnedCarId(carId: string, cars: CarIdOption[]) {
+  return cars.some((car) => car.id === carId);
 }
 
 export function createWashLogInsertPayload({

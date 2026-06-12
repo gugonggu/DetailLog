@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+import { getAuthErrorMessage } from "./auth-error";
 import { AuthMessage } from "./auth-message";
 import {
   getLoginRedirectPath,
@@ -48,15 +49,19 @@ export function LoginForm({ isSupabaseConfigured }: LoginFormProps) {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword(values);
+    try {
+      const { error } = await supabase.auth.signInWithPassword(values);
 
-    if (error) {
-      setFormError(error.message);
-      return;
+      if (error) {
+        setFormError(getAuthErrorMessage(error.message));
+        return;
+      }
+
+      router.replace(getLoginRedirectPath(redirectedFrom));
+      router.refresh();
+    } catch (error) {
+      setFormError(getAuthErrorMessage(error));
     }
-
-    router.replace(getLoginRedirectPath(redirectedFrom));
-    router.refresh();
   }
 
   return (

@@ -28,14 +28,14 @@ const featureCards = [
 export function LandingPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <section className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_0.9fr]">
+      <section className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_0.9fr] lg:py-16">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-sm font-bold text-muted-foreground">
             <Car className="h-4 w-4 text-primary" aria-hidden="true" />
             Detailog web MVP
           </div>
-          <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight sm:text-6xl">
-            Detailog
+          <h1 className="mt-6 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-6xl">
+            세차 관리가<br /><span className="text-primary">더 선명해집니다.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
             세차 기록 관리, 루틴 추천, 커뮤니티 공유를 위한 responsive web
@@ -45,21 +45,21 @@ export function LandingPage() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/dashboard"
-              className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+              className="primary-action"
             >
-              Open dashboard
+              대시보드 열기
             </Link>
             <Link
               href="/community"
-              className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-white px-5 text-sm font-semibold shadow-sm transition hover:bg-muted"
+              className="secondary-action"
             >
-              View community
+              커뮤니티 보기
             </Link>
           </div>
         </div>
 
-        <div className="rounded-md border border-border bg-white p-4 shadow-sm">
-          <div className="rounded-md bg-slate-950 p-4 text-white">
+        <div className="surface-card p-3 sm:p-4">
+          <div className="rounded-2xl bg-slate-950 p-5 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-300">Today care board</p>
@@ -71,14 +71,14 @@ export function LandingPage() {
               {previewItems.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-md border border-white/10 bg-white/10 p-3"
+                  className="rounded-xl border border-white/10 bg-white/10 p-3"
                 >
                   <p className="text-xs text-slate-300">{item.label}</p>
                   <p className="mt-2 text-sm font-semibold">{item.value}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-6 h-32 rounded-md bg-[linear-gradient(135deg,#0e7490_0%,#22d3ee_48%,#f59e0b_100%)]" />
+            <div className="mt-6 h-32 rounded-2xl bg-[linear-gradient(135deg,#0e7490_0%,#22d3ee_48%,#f59e0b_100%)]" />
           </div>
 
           <div className="mt-4 grid gap-3">
@@ -88,9 +88,9 @@ export function LandingPage() {
               return (
                 <article
                   key={feature.title}
-                  className="grid grid-cols-[2.5rem_1fr] gap-3 rounded-md border border-border p-4"
+                  className="grid grid-cols-[2.5rem_1fr] gap-3 rounded-2xl bg-muted/50 p-4"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-primary">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>

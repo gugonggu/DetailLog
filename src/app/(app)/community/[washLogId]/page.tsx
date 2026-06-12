@@ -87,7 +87,7 @@ export default async function CommunityDetailPage({
 
   const profileResult = data
     ? await supabase
-        .from("profiles")
+        .from("community_profiles")
         .select("id,nickname")
         .eq("id", data.user_id)
         .maybeSingle()

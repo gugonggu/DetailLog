@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 33% 98%;
+  --background: 210 40% 98%;
   --foreground: 222 35% 14%;
-  --muted: 210 22% 92%;
+  --muted: 210 25% 94%;
   --muted-foreground: 218 12% 42%;
   --primary: 191 95% 31%;
   --primary-foreground: 0 0% 100%;
@@ -27,9 +27,48 @@ body {
   margin: 0;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+  font-feature-settings: "ss01", "ss02";
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.18);
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10;
+  }
+
+  .surface-card {
+    @apply rounded-2xl border border-border/80 bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)];
+  }
+
+  .field-control {
+    @apply mt-2 h-12 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10;
+  }
+
+  .primary-action {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .secondary-action {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-white px-5 text-sm font-bold transition hover:border-primary hover:bg-primary/5 hover:text-primary;
+  }
 }

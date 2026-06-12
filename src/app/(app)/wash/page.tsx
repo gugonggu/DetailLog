@@ -2,8 +2,16 @@ import { CalendarDays, Droplets, Plus } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState, ErrorState } from "@/components/ui/states";
+import { WashLogFilterForm } from "@/features/wash-logs/wash-log-filter-form";
+import {
+  createWashLogKeywordFilter,
+  parseWashLogFilters,
+  type SearchParams,
+} from "@/features/wash-logs/wash-log-filters";
 import { mapWashLogRowToWashLog } from "@/features/wash-logs/wash-log-service";
-import type { WashLogRow } from "@/features/wash-logs/types";
+import type { WashLogCar, WashLogRow } from "@/features/wash-logs/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const washLogSelect =
@@ -16,7 +24,12 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export default async function WashPage() {
+type WashPageProps = {
+  searchParams: Promise<SearchParams>;
+};
+
+export default async function WashPage({ searchParams }: WashPageProps) {
+  const filters = parseWashLogFilters(await searchParams);
   const supabase = await createServerSupabaseClient();
 
   if (!supabase) {
@@ -31,69 +44,100 @@ export default async function WashPage() {
     redirect("/login");
   }
 
-  const { data, error } = await supabase
+  let washLogsQuery = supabase
     .from("wash_logs")
     .select(washLogSelect)
-    .eq("user_id", user.id)
-    .order("wash_date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .eq("user_id", user.id);
+
+  const keywordFilter = createWashLogKeywordFilter(filters.keyword);
+
+  if (keywordFilter) {
+    washLogsQuery = washLogsQuery.or(keywordFilter);
+  }
+  if (filters.car) {
+    washLogsQuery = washLogsQuery.eq("car_id", filters.car);
+  }
+  if (filters.visibility) {
+    washLogsQuery = washLogsQuery.eq("visibility", filters.visibility);
+  }
+  if (filters.dirtLevel) {
+    washLogsQuery = washLogsQuery.eq("dirt_level", filters.dirtLevel);
+  }
+  if (filters.satisfaction) {
+    washLogsQuery = washLogsQuery.eq("satisfaction", filters.satisfaction);
+  }
+  if (filters.from) {
+    washLogsQuery = washLogsQuery.gte("wash_date", filters.from);
+  }
+  if (filters.to) {
+    washLogsQuery = washLogsQuery.lte("wash_date", filters.to);
+  }
+
+  const [
+    { data, error },
+    { data: carRows, error: carError },
+  ] = await Promise.all([
+    washLogsQuery
+      .order("wash_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("cars")
+      .select("id,name,brand,model")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true }),
+  ]);
 
   const washLogs = ((data ?? []) as WashLogRow[]).map(mapWashLogRowToWashLog);
+  const cars = (carRows ?? []) as WashLogCar[];
+  const pageError = error ?? carError;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">Wash Logs</p>
-          <h1 className="mt-3 text-3xl font-bold">세차 기록</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            내 차량별 세차 이력과 진행 단계를 한곳에서 관리합니다.
-          </p>
-        </div>
-        <Link
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
-          href="/wash/new"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          기록 추가
-        </Link>
-      </section>
-
-      {error ? (
-        <section className="mt-8 rounded-md border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
-          세차 기록 목록을 불러오지 못했습니다. {error.message}
-        </section>
-      ) : null}
-
-      {!error && washLogs.length === 0 ? (
-        <section className="mt-8 rounded-md border border-border bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
-            <Droplets className="h-7 w-7" aria-hidden="true" />
-          </div>
-          <h2 className="mt-5 text-xl font-semibold">아직 세차 기록이 없습니다.</h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            첫 세차 기록을 남기면 차량별 관리 이력을 차곡차곡 확인할 수 있습니다.
-          </p>
-          <Link
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
-            href="/wash/new"
-          >
+    <main className="page-shell">
+      <PageHeader
+        eyebrow="Wash Logs"
+        title="세차 기록"
+        description="내 차량별 세차 이력과 진행 단계를 한곳에서 관리합니다."
+        action={
+          <Link className="primary-action" href="/wash/new">
             <Plus className="h-4 w-4" aria-hidden="true" />
             기록 추가
           </Link>
-        </section>
+        }
+      />
+
+      <WashLogFilterForm cars={cars} filters={filters} />
+
+      {pageError ? (
+        <ErrorState className="mt-8" title="세차 기록 목록을 불러오지 못했습니다." description={pageError.message} />
       ) : null}
 
-      {!error && washLogs.length > 0 ? (
+      {!pageError && washLogs.length === 0 ? (
+        <EmptyState
+          className="mt-8"
+          icon={<Droplets className="h-7 w-7" aria-hidden="true" />}
+          title={filters.hasActiveFilters ? "조건에 맞는 세차 기록이 없습니다." : "아직 세차 기록이 없습니다."}
+          description={filters.hasActiveFilters ? "필터 조건을 바꾸거나 초기화해서 다시 확인해 보세요." : "첫 세차 기록을 남기면 차량별 관리 이력을 차곡차곡 확인할 수 있습니다."}
+          action={filters.hasActiveFilters ? (
+            <Link className="secondary-action" href="/wash">필터 초기화</Link>
+          ) : (
+            <Link className="primary-action" href="/wash/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              기록 추가
+            </Link>
+          )}
+        />
+      ) : null}
+
+      {!pageError && washLogs.length > 0 ? (
         <section className="mt-8 grid gap-4 md:grid-cols-2">
           {washLogs.map((washLog) => (
             <Link
-              className="rounded-md border border-border bg-white p-5 shadow-sm transition hover:border-primary"
+              className="surface-card p-5 transition hover:-translate-y-0.5 hover:border-primary sm:p-6"
               href={`/wash/${washLog.id}`}
               key={washLog.id}
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-primary">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Droplets className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div className="min-w-0">

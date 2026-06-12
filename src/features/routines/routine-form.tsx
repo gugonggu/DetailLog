@@ -116,7 +116,7 @@ export function RoutineForm({ cars }: RoutineFormProps) {
 
   return (
     <form
-      className="rounded-md border border-border bg-white p-5 shadow-sm"
+      className="surface-card p-5 sm:p-6"
       onSubmit={handleSubmit(onSubmit)}
     >
       {cars.length === 0 ? (
@@ -129,7 +129,7 @@ export function RoutineForm({ cars }: RoutineFormProps) {
         <label className="block text-sm font-medium">
           차량
           <select
-            className="mt-2 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="field-control"
             disabled={cars.length === 0}
             {...register("carId", {
               onChange: (event) => syncCarProfile(event.target.value),
@@ -238,7 +238,7 @@ export function RoutineForm({ cars }: RoutineFormProps) {
       ) : null}
 
       <button
-        className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        className="primary-action mt-5 w-full sm:w-auto"
         type="submit"
         disabled={isSubmitting || cars.length === 0}
       >
@@ -260,7 +260,7 @@ function TextField({ label, error, registration, type = "text", ...props }: Text
     <label className="block text-sm font-medium">
       {label}
       <input
-        className="mt-2 h-11 w-full rounded-md border border-border px-3 text-sm outline-none transition focus:border-primary"
+        className="field-control"
         type={type}
         {...props}
         {...registration}
@@ -282,7 +282,7 @@ function SelectField({ label, error, registration, options }: SelectFieldProps) 
     <label className="block text-sm font-medium">
       {label}
       <select
-        className="mt-2 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+        className="field-control"
         {...registration}
       >
         {options.map(([value, labelText]) => (
@@ -308,7 +308,7 @@ function ListField({ label, helper, error, registration }: ListFieldProps) {
     <label className="block text-sm font-medium">
       {label}
       <textarea
-        className="mt-2 min-h-24 w-full rounded-md border border-border px-3 py-3 text-sm outline-none transition focus:border-primary"
+        className="field-control min-h-24 py-3"
         {...registration}
       />
       <span className="mt-2 block text-xs text-muted-foreground">{helper}</span>

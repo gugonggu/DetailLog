@@ -1,33 +1,14 @@
-import { Droplets } from "lucide-react";
+import { LoadingCard } from "@/components/ui/states";
 
 export default function CommunityLoading() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <section>
-        <p className="text-sm font-semibold text-primary">Community</p>
-        <h1 className="mt-3 text-3xl font-bold">공개 세차 기록</h1>
-        <p className="mt-3 h-5 max-w-xl animate-pulse rounded-md bg-muted" />
-      </section>
-
+    <main className="page-shell" aria-label="커뮤니티 불러오는 중">
+      <div className="h-4 w-24 animate-pulse rounded-full bg-muted" />
+      <div className="mt-4 h-10 w-52 animate-pulse rounded-full bg-muted" />
+      <div className="mt-4 h-5 w-full max-w-xl animate-pulse rounded-full bg-muted" />
+      <LoadingCard className="mt-8 min-h-40" />
       <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {[0, 1, 2].map((item) => (
-          <article
-            className="overflow-hidden rounded-md border border-border bg-white shadow-sm"
-            key={item}
-          >
-            <div className="flex aspect-[4/3] items-center justify-center bg-muted text-muted-foreground">
-              <Droplets className="h-8 w-8" aria-hidden="true" />
-            </div>
-            <div className="space-y-3 p-5">
-              <div className="h-5 w-2/3 animate-pulse rounded-md bg-muted" />
-              <div className="h-4 w-1/2 animate-pulse rounded-md bg-muted" />
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="h-16 animate-pulse rounded-md bg-muted" />
-                <div className="h-16 animate-pulse rounded-md bg-muted" />
-              </div>
-            </div>
-          </article>
-        ))}
+        {[0, 1, 2].map((item) => <LoadingCard className="min-h-96" key={item} />)}
       </section>
     </main>
   );

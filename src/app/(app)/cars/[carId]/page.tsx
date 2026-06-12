@@ -114,7 +114,7 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
                 value={car.color}
                 icon={<Palette className="h-4 w-4 text-primary" aria-hidden="true" />}
               />
-              <InfoItem label="코팅 타입" value={car.coatingType} />
+              <InfoItem label="도장면 보호 상태" value={car.coatingType} />
               <InfoItem
                 label="등록일"
                 value={formatDate(car.createdAt)}

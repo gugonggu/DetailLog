@@ -5,7 +5,12 @@ import {
   createCarUpdatePayload,
   mapCarRowToCar,
 } from "./car-service";
-import { carFormSchema } from "./schemas";
+import {
+  CAR_PAINT_PROTECTION_OPTIONS,
+  carFormSchema,
+  createCarFormSchema,
+  getPaintProtectionOptions,
+} from "./schemas";
 
 describe("car schemas", () => {
   it("accepts a trimmed car form payload", () => {
@@ -15,7 +20,7 @@ describe("car schemas", () => {
       model: "  Sonata  ",
       year: "2024",
       color: "  White  ",
-      coatingType: "  Ceramic  ",
+      coatingType: "  유리막·세라믹 코팅  ",
       memo: "  Garage kept  ",
     });
 
@@ -27,7 +32,7 @@ describe("car schemas", () => {
         model: "Sonata",
         year: 2024,
         color: "White",
-        coatingType: "Ceramic",
+        coatingType: "유리막·세라믹 코팅",
         memo: "Garage kept",
       });
     }
@@ -40,11 +45,47 @@ describe("car schemas", () => {
       model: "Sonata",
       year: "1885",
       color: "White",
-      coatingType: "Wax",
+      coatingType: "왁스",
       memo: "",
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("rejects a paint protection value outside the selection list", () => {
+    const result = carFormSchema.safeParse({
+      name: "Daily",
+      brand: "Hyundai",
+      model: "Sonata",
+      year: "2024",
+      color: "White",
+      coatingType: "Unknown custom coating",
+      memo: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("keeps a legacy paint protection value available while editing", () => {
+    expect(getPaintProtectionOptions("Legacy coating")).toEqual([
+      ...CAR_PAINT_PROTECTION_OPTIONS,
+      "Legacy coating",
+    ]);
+    expect(getPaintProtectionOptions("왁스")).toEqual(
+      CAR_PAINT_PROTECTION_OPTIONS,
+    );
+
+    expect(
+      createCarFormSchema("Legacy coating").safeParse({
+        name: "Daily",
+        brand: "Hyundai",
+        model: "Sonata",
+        year: "2024",
+        color: "White",
+        coatingType: "Legacy coating",
+        memo: "",
+      }).success,
+    ).toBe(true);
   });
 
   it("prepares an insert payload with user ownership", () => {

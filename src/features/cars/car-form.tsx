@@ -13,7 +13,11 @@ import {
   createCarInsertPayload,
   createCarUpdatePayload,
 } from "./car-service";
-import { carFormSchema, type CarFormValues } from "./schemas";
+import {
+  createCarFormSchema,
+  getPaintProtectionOptions,
+  type CarFormValues,
+} from "./schemas";
 
 type CarFormMode = "create" | "edit";
 
@@ -30,7 +34,7 @@ const emptyValues: CarFormValues = {
   model: "",
   year: new Date().getFullYear(),
   color: "",
-  coatingType: "",
+  coatingType: "잘 모르겠음",
   memo: "",
 };
 
@@ -48,9 +52,12 @@ export function CarForm({
     handleSubmit,
     register,
   } = useForm<CarFormValues>({
-    resolver: zodResolver(carFormSchema),
+    resolver: zodResolver(createCarFormSchema(defaultValues.coatingType)),
     defaultValues,
   });
+  const paintProtectionOptions = getPaintProtectionOptions(
+    defaultValues.coatingType,
+  );
 
   async function onSubmit(values: CarFormValues) {
     setFormError("");
@@ -103,7 +110,7 @@ export function CarForm({
 
   return (
     <form
-      className="rounded-md border border-border bg-white p-5 shadow-sm"
+      className="surface-card p-5 sm:p-6"
       onSubmit={handleSubmit(onSubmit)}
     >
       <div className="grid gap-5 sm:grid-cols-2">
@@ -139,18 +146,30 @@ export function CarForm({
           error={errors.color?.message}
           registration={register("color")}
         />
-        <TextField
-          label="코팅 타입"
-          autoComplete="off"
-          error={errors.coatingType?.message}
-          registration={register("coatingType")}
-        />
+        <label className="block text-sm font-medium">
+          도장면 보호 상태
+          <select className="field-control" {...register("coatingType")}>
+            {paintProtectionOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <span className="mt-2 block text-xs leading-5 text-muted-foreground">
+            현재 차량 도장면에 적용된 왁스, 코팅 또는 보호 필름 상태입니다.
+          </span>
+          {errors.coatingType ? (
+            <span className="mt-2 block text-sm text-red-700">
+              {errors.coatingType.message}
+            </span>
+          ) : null}
+        </label>
       </div>
 
       <label className="mt-5 block text-sm font-medium">
         메모
         <textarea
-          className="mt-2 min-h-32 w-full rounded-md border border-border px-3 py-3 text-sm outline-none transition focus:border-primary"
+          className="field-control min-h-32 py-3"
           {...register("memo")}
         />
       </label>
@@ -165,7 +184,7 @@ export function CarForm({
       ) : null}
 
       <button
-        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="primary-action mt-5 w-full sm:w-auto"
         type="submit"
         disabled={isSubmitting}
       >
@@ -193,7 +212,7 @@ function TextField({
     <label className="block text-sm font-medium">
       {label}
       <input
-        className="mt-2 h-11 w-full rounded-md border border-border px-3 text-sm outline-none transition focus:border-primary"
+        className="field-control"
         type={type}
         {...props}
         {...registration}

@@ -17,6 +17,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   createWashLogInsertPayload,
   createWashLogUpdatePayload,
+  isOwnedCarId,
 } from "./wash-log-service";
 import { washLogFormSchema, type WashLogFormValues } from "./schemas";
 
@@ -88,6 +89,11 @@ export function WashLogForm({
 
   async function onSubmit(values: WashLogFormValues) {
     setFormError("");
+
+    if (!isOwnedCarId(values.carId, cars)) {
+      setFormError("현재 계정이 소유한 차량만 세차 기록에 사용할 수 있습니다.");
+      return;
+    }
 
     const supabase = createBrowserSupabaseClient();
 
@@ -173,7 +179,7 @@ export function WashLogForm({
 
   return (
     <form
-      className="rounded-md border border-border bg-white p-5 shadow-sm"
+      className="surface-card p-5 sm:p-6"
       onSubmit={handleSubmit(onSubmit)}
     >
       {cars.length === 0 ? (
@@ -186,7 +192,7 @@ export function WashLogForm({
         <label className="block text-sm font-medium">
           차량
           <select
-            className="mt-2 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="field-control"
             disabled={cars.length === 0}
             {...register("carId")}
           >
@@ -260,7 +266,7 @@ export function WashLogForm({
         <label className="block text-sm font-medium">
           공개 범위
           <select
-            className="mt-2 h-11 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+            className="field-control"
             {...register("visibility")}
           >
             <option value="private">비공개</option>
@@ -277,7 +283,7 @@ export function WashLogForm({
       <label className="mt-5 block text-sm font-medium">
         메모
         <textarea
-          className="mt-2 min-h-32 w-full rounded-md border border-border px-3 py-3 text-sm outline-none transition focus:border-primary"
+          className="field-control min-h-32 py-3"
           {...register("memo")}
         />
       </label>
@@ -294,7 +300,7 @@ export function WashLogForm({
             </p>
           </div>
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold transition hover:border-primary"
+            className="secondary-action h-10 px-3"
             type="button"
             onClick={() =>
               append({
@@ -316,7 +322,7 @@ export function WashLogForm({
 
         <div className="mt-4 space-y-4">
           {fields.map((field, index) => (
-            <div className="rounded-md border border-border p-4" key={field.id}>
+            <div className="rounded-2xl border border-border bg-muted/30 p-4" key={field.id}>
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold">단계 {index + 1}</h3>
                 <button
@@ -347,7 +353,7 @@ export function WashLogForm({
               <label className="mt-4 block text-sm font-medium">
                 단계 메모
                 <textarea
-                  className="mt-2 min-h-24 w-full rounded-md border border-border px-3 py-3 text-sm outline-none transition focus:border-primary"
+                  className="field-control min-h-24 py-3"
                   {...register(`steps.${index}.memo`)}
                 />
               </label>
@@ -368,7 +374,7 @@ export function WashLogForm({
       ) : null}
 
       <button
-        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="primary-action mt-5 w-full sm:w-auto"
         type="submit"
         disabled={isSubmitting || cars.length === 0}
       >
@@ -396,7 +402,7 @@ function TextField({
     <label className="block text-sm font-medium">
       {label}
       <input
-        className="mt-2 h-11 w-full rounded-md border border-border px-3 text-sm outline-none transition focus:border-primary"
+        className="field-control"
         type={type}
         {...props}
         {...registration}

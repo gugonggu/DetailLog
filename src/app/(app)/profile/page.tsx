@@ -1,6 +1,8 @@
 import { CalendarDays, Mail, UserRound } from "lucide-react";
 import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/ui/page-header";
+import { ErrorState } from "@/components/ui/states";
 import { ProfileEditForm } from "@/features/profile/profile-edit-form";
 import type { Profile } from "@/features/profile/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -46,20 +48,15 @@ export default async function ProfilePage() {
   const displayEmail = profile?.email ?? user.email ?? "이메일 정보 없음";
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8">
-      <section>
-        <p className="text-sm font-semibold text-primary">Profile</p>
-        <h1 className="mt-3 text-3xl font-bold">내 프로필</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          계정의 기본 프로필 정보를 확인하고 닉네임을 수정합니다. 차량 관리와
-          아바타 업로드는 아직 연결하지 않습니다.
-        </p>
-      </section>
+    <main className="page-shell max-w-5xl">
+      <PageHeader
+        eyebrow="Profile"
+        title="내 프로필"
+        description="계정의 기본 프로필 정보를 확인하고 닉네임을 수정합니다. 차량 관리와 아바타 업로드는 아직 연결하지 않습니다."
+      />
 
       {error ? (
-        <section className="mt-8 rounded-md border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
-          프로필을 불러오지 못했습니다. {error.message}
-        </section>
+        <ErrorState className="mt-8" title="프로필을 불러오지 못했습니다." description={error.message} />
       ) : null}
 
       {!error && !profile ? (
@@ -71,9 +68,9 @@ export default async function ProfilePage() {
 
       {!error ? (
         <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-          <section className="rounded-md border border-border bg-white p-5 shadow-sm">
+          <section className="surface-card p-5 sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 text-primary">
                 <UserRound className="h-9 w-9" aria-hidden="true" />
               </div>
               <div>
@@ -87,7 +84,7 @@ export default async function ProfilePage() {
             </div>
 
             <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-md border border-border p-4">
+              <div className="rounded-2xl bg-muted/60 p-4">
                 <dt className="flex items-center gap-2 text-sm font-semibold">
                   <Mail className="h-4 w-4 text-primary" aria-hidden="true" />
                   이메일
@@ -96,7 +93,7 @@ export default async function ProfilePage() {
                   {displayEmail}
                 </dd>
               </div>
-              <div className="rounded-md border border-border p-4">
+              <div className="rounded-2xl bg-muted/60 p-4">
                 <dt className="flex items-center gap-2 text-sm font-semibold">
                   <CalendarDays
                     className="h-4 w-4 text-primary"
