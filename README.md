@@ -88,15 +88,3 @@ npm run lint
 npm run build
 npm audit --audit-level=moderate
 ```
-
-최근 검증 결과:
-
-- `npm test`: 18 files, 87 tests passed
-- `npm run lint`: No ESLint warnings or errors
-- `npm run build`: production build success
-
-`npm audit`에는 Next 내부 PostCSS 관련 moderate advisory가 남아 있습니다. `npm audit fix --force`는 Next를 breaking change 방향으로 바꾸기 때문에 적용하지 않았고, Next 패치 릴리스에서 해결되는지 추적하는 상태입니다.
-
-## 배포 대상
-
-첫 릴리스 목표는 Vercel에 배포되는 웹 서비스입니다. 네이티브 모바일 앱, App Store, Play Store 릴리스 작업은 범위에 포함하지 않습니다.
