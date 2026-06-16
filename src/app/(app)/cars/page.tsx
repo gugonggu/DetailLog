@@ -48,7 +48,7 @@ export default async function CarsPage() {
       {error ? (
         <ErrorState
           className="mt-8"
-          title="차량 목록을 불러오지 못했습니다."
+          title="차량 목록을 불러오지 못했습니다"
           description={error.message}
         />
       ) : null}
@@ -57,8 +57,8 @@ export default async function CarsPage() {
         <EmptyState
           className="mt-8"
           icon={<CarFront className="h-7 w-7" aria-hidden="true" />}
-          title="등록된 차량이 없습니다."
-          description="첫 차량을 등록하면 차량별 세차 기준을 분리해서 관리할 수 있습니다."
+          title="등록된 차량이 없습니다"
+          description="첫 차량을 등록하면 차량별 세차 기록을 분리해서 관리할 수 있습니다."
           action={
             <Link className="primary-action" href="/cars/new">
               <Plus className="h-4 w-4" aria-hidden="true" />

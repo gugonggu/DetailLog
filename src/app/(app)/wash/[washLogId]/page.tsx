@@ -12,6 +12,7 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { WashImageManager } from "@/features/wash-images/wash-image-manager";
+import { signWashImages } from "@/features/wash-images/wash-image-service";
 import { DeleteWashLogButton } from "@/features/wash-logs/delete-wash-log-button";
 import { mapWashLogRowToWashLog } from "@/features/wash-logs/wash-log-service";
 import type { WashLogRow } from "@/features/wash-logs/types";
@@ -69,6 +70,7 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
   }
 
   const washLog = data ? mapWashLogRowToWashLog(data as WashLogRow) : null;
+  const signedImages = washLog ? await signWashImages(supabase, washLog.images) : [];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8">
@@ -167,7 +169,7 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
           <WashImageManager
             userId={user.id}
             washLogId={washLog.id}
-            initialImages={washLog.images}
+            initialImages={signedImages}
           />
 
           <section className="mt-6 rounded-md border border-border bg-white p-5 shadow-sm">

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Bot,
   CalendarDays,
@@ -168,19 +169,21 @@ export default async function DashboardPage() {
     <main className="page-shell">
       <PageHeader
         eyebrow="Dashboard"
-        title="대시보드"
-        description="내 차량, 세차 기록, AI 루틴을 한눈에 확인하고 다음 작업으로 바로 이동합니다."
+        title="내 관리 현황"
+        description="차량, 세차 기록, 이번 달 비용, 최근 AI 루틴을 한눈에 확인하고 다음 작업으로 바로 이동합니다."
       />
 
       {queryErrors.length > 0 ? (
         <ErrorState
           className="mt-8"
-          title="대시보드 정보를 불러오지 못했습니다."
-          details={<ul className="space-y-1">
-            {queryErrors.map((error) => (
-              <li key={error.message}>{error.message}</li>
-            ))}
-          </ul>}
+          title="대시보드 정보를 불러오지 못했습니다"
+          details={
+            <ul className="space-y-1">
+              {queryErrors.map((error) => (
+                <li key={error.message}>{error.message}</li>
+              ))}
+            </ul>
+          }
         />
       ) : null}
 
@@ -188,9 +191,14 @@ export default async function DashboardPage() {
         <EmptyState
           className="mt-8"
           icon={<CarFront className="h-7 w-7" aria-hidden="true" />}
-          title="아직 관리할 데이터가 없습니다."
+          title="아직 관리할 데이터가 없습니다"
           description="첫 차량을 등록하면 세차 기록과 AI 루틴을 차량 기준으로 모아볼 수 있습니다."
-          action={<Link className="primary-action" href="/cars/new"><Plus className="h-4 w-4" aria-hidden="true" />차량 추가</Link>}
+          action={
+            <Link className="primary-action" href="/cars/new">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              차량 추가
+            </Link>
+          }
         />
       ) : null}
 
@@ -214,8 +222,8 @@ export default async function DashboardPage() {
             />
             <SummaryCard
               icon={<CircleDollarSign className="h-5 w-5 text-primary" aria-hidden="true" />}
-              label="이번 달 비용"
-              value={formatCurrency(monthlySummary.totalCost)}
+              label="월 평균 비용"
+              value={formatCurrency(monthlySummary.averageCost)}
             />
           </section>
 
@@ -228,17 +236,20 @@ export default async function DashboardPage() {
           </section>
 
           <section className="surface-card mt-6 p-5 sm:p-6">
-            <h2 className="text-lg font-bold">빠른 실행</h2>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold">빠른 실행</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  자주 여는 작업으로 바로 이동합니다.
+                </p>
+              </div>
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
 
                 return (
-                  <Link
-                    className="secondary-action"
-                    href={action.href}
-                    key={action.href}
-                  >
+                  <Link className="secondary-action" href={action.href} key={action.href}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
                     {action.label}
                   </Link>
@@ -253,7 +264,7 @@ export default async function DashboardPage() {
 }
 
 type SummaryCardProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 };
@@ -277,7 +288,7 @@ function RecentWashLogCard({ washLog }: { washLog: WashLog | null }) {
         <div>
           <p className="text-sm font-semibold text-primary">최근 세차 기록</p>
           <h2 className="mt-3 text-xl font-semibold">
-            {washLog ? washLog.title : "아직 세차 기록이 없습니다."}
+            {washLog ? washLog.title : "아직 세차 기록이 없습니다"}
           </h2>
         </div>
         <Droplets className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -288,7 +299,7 @@ function RecentWashLogCard({ washLog }: { washLog: WashLog | null }) {
             {washLog.car?.name ?? "차량 정보 없음"} · {formatDate(washLog.washDate)}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <SmallMetric label="마지막 세차일" value={formatDate(washLog.washDate)} />
+            <SmallMetric label="세차일" value={formatDate(washLog.washDate)} />
             <SmallMetric label="소요 시간" value={`${washLog.durationMinutes}분`} />
             <SmallMetric label="비용" value={formatCurrency(washLog.cost)} />
           </div>
@@ -302,7 +313,7 @@ function RecentWashLogCard({ washLog }: { washLog: WashLog | null }) {
         </>
       ) : (
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          세차 기록을 추가하면 마지막 세차일과 최근 기록 요약이 이곳에 표시됩니다.
+          세차 기록을 추가하면 최근 기록 요약과 비용, 소요 시간을 이곳에서 확인할 수 있습니다.
         </p>
       )}
     </article>
@@ -322,7 +333,7 @@ function RecentRoutineCard({
         <div>
           <p className="text-sm font-semibold text-primary">최근 AI 루틴</p>
           <h2 className="mt-3 text-xl font-semibold">
-            {routine ? routine.result.title : "저장된 AI 루틴이 없습니다."}
+            {routine ? routine.result.title : "저장된 AI 루틴이 없습니다"}
           </h2>
         </div>
         <Bot className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -350,7 +361,7 @@ function RecentRoutineCard({
         </>
       ) : (
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          AI 루틴을 생성하면 가장 최근 추천이 이곳에 표시됩니다.
+          AI 루틴을 생성하면 가장 최근 추천을 이곳에서 다시 열어볼 수 있습니다.
         </p>
       )}
     </article>

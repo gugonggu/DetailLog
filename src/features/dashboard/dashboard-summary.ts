@@ -26,8 +26,12 @@ export function getDashboardMonthRange(now = new Date()) {
 }
 
 export function summarizeMonthlyWashLogs(washLogs: MonthlyWashLogCost[]) {
+  const totalCost = washLogs.reduce((sum, washLog) => sum + (washLog.cost ?? 0), 0);
+  const count = washLogs.length;
+
   return {
-    count: washLogs.length,
-    totalCost: washLogs.reduce((sum, washLog) => sum + (washLog.cost ?? 0), 0),
+    count,
+    totalCost,
+    averageCost: count > 0 ? Math.round(totalCost / count) : 0,
   };
 }

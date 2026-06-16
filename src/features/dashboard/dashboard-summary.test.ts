@@ -20,6 +20,15 @@ describe("dashboard summary", () => {
     ).toEqual({
       count: 3,
       totalCost: 47000,
+      averageCost: 15667,
+    });
+  });
+
+  it("returns zero average cost when there are no monthly wash logs", () => {
+    expect(summarizeMonthlyWashLogs([])).toEqual({
+      count: 0,
+      totalCost: 0,
+      averageCost: 0,
     });
   });
 });

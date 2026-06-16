@@ -7,6 +7,14 @@ const migrationPath = resolve(
   process.cwd(),
   "supabase/migrations/20260609000000_initial_schema.sql",
 );
+const publicLandingMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20260616001000_public_landing_preview.sql",
+);
+const securityHardeningMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20260616002000_security_hardening.sql",
+);
 
 function readMigration() {
   return readFileSync(migrationPath, "utf8").toLowerCase();
@@ -45,5 +53,28 @@ describe("Supabase schema", () => {
       expect(source).toContain('.from("community_profiles")');
       expect(source).not.toContain('.from("profiles")');
     }
+  });
+
+  it("limits anonymous landing preview reads to public community data", () => {
+    const migration = readFileSync(publicLandingMigrationPath, "utf8").toLowerCase();
+
+    expect(migration).toContain("grant select on public.community_profiles to anon");
+    expect(migration).toContain("public wash logs are readable by anonymous visitors");
+    expect(migration).toContain("visibility = 'public'");
+    expect(migration).toContain("public wash images are readable by anonymous visitors");
+    expect(migration).toContain("public cars are readable by anonymous visitors");
+  });
+
+  it("hardens public profile, private wash image storage, and routine quota support", () => {
+    const migration = readFileSync(securityHardeningMigrationPath, "utf8").toLowerCase();
+
+    expect(migration).toContain("where exists");
+    expect(migration).toContain("wash_logs.visibility = 'public'");
+    expect(migration).toContain("where id = 'wash-images'");
+    expect(migration).toContain("public = false");
+    expect(migration).toContain("allowed_mime_types");
+    expect(migration).toContain("image/webp");
+    expect(migration).toContain("public wash image objects are readable by anonymous visitors");
+    expect(migration).toContain("routine_recommendations_user_recent_idx");
   });
 });

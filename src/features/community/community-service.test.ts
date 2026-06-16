@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mapLandingPreviewRows,
   mapCommunityDetailRow,
   mapCommunityFeedRows,
+  signCommunityWashLogRows,
 } from "./community-service";
 import type {
   CommunityProfileRow,
@@ -40,6 +42,7 @@ const profiles: CommunityProfileRow[] = [
   {
     id: "author-id",
     nickname: "Author",
+    avatar_url: "https://example.supabase.co/storage/v1/object/public/avatars/author/avatar.jpg",
   },
 ];
 
@@ -80,6 +83,9 @@ describe("community service", () => {
     expect(item.bookmarkCount).toBe(1);
     expect(item.likedByCurrentUser).toBe(true);
     expect(item.bookmarkedByCurrentUser).toBe(true);
+    expect(item.author.avatarUrl).toBe(
+      "https://example.supabase.co/storage/v1/object/public/avatars/author/avatar.jpg",
+    );
   });
 
   it("maps reaction counts and current user state for detail rows", () => {
@@ -114,5 +120,64 @@ describe("community service", () => {
     };
 
     expect(mapCommunityDetailRow(privateWashLog, profiles[0])).toBeNull();
+  });
+
+  it("maps up to three public rows for landing preview", () => {
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      ...basePublicWashLogRow,
+      id: `wash-log-${index + 1}`,
+      title: `Weekend wash ${index + 1}`,
+    }));
+
+    const items = mapLandingPreviewRows(rows, profiles);
+
+    expect(items).toHaveLength(3);
+    expect(items.map((item) => item.title)).toEqual([
+      "Weekend wash 1",
+      "Weekend wash 2",
+      "Weekend wash 3",
+    ]);
+    expect(items[0]).toMatchObject({
+      likeCount: 0,
+      bookmarkCount: 0,
+      likedByCurrentUser: false,
+      bookmarkedByCurrentUser: false,
+    });
+  });
+
+  it("signs nested wash image rows for community rendering", async () => {
+    const row = {
+      ...basePublicWashLogRow,
+      wash_images: [
+        {
+          id: "image-id",
+          wash_log_id: "wash-log-id",
+          image_url:
+            "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
+          image_type: "before" as const,
+          is_representative: true,
+          created_at: "2026-05-19T00:00:00.000Z",
+        },
+      ],
+    };
+    const supabase = {
+      storage: {
+        from() {
+          return {
+            createSignedUrl() {
+              return Promise.resolve({
+                data: { signedUrl: "https://signed.example/file.jpg" },
+                error: null,
+              });
+            },
+          };
+        },
+      },
+    };
+
+    const [signedRow] = await signCommunityWashLogRows(supabase, [row]);
+
+    expect(signedRow.wash_images?.[0]?.image_url).toBe("https://signed.example/file.jpg");
+    expect(row.wash_images[0].image_url).toContain("/object/public/wash-images/");
   });
 });

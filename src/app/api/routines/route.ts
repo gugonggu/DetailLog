@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getRoutineFallbackReason } from "@/features/routines/fallback-reason";
+import {
+  ROUTINE_DAILY_LIMIT,
+  getRoutineDailyRange,
+  hasReachedRoutineDailyLimit,
+} from "@/features/routines/routine-rate-limit";
 import { createRoutineInsertPayload } from "@/features/routines/routine-service";
 import {
   routineInputSchema,
@@ -28,12 +34,10 @@ const routineResultJsonSchema = {
   properties: {
     title: { type: "string" },
     summary: { type: "string" },
-    estimatedTime: { type: "integer", minimum: 15, maximum: 240 },
+    estimatedTime: { type: "integer" },
     difficulty: { type: "string", enum: ["easy", "normal", "hard"] },
     steps: {
       type: "array",
-      minItems: 1,
-      maxItems: 12,
       items: {
         type: "object",
         additionalProperties: false,
@@ -46,17 +50,16 @@ const routineResultJsonSchema = {
           "cautions",
         ],
         properties: {
-          order: { type: "integer", minimum: 1 },
+          order: { type: "integer" },
           title: { type: "string" },
           description: { type: "string" },
           products: {
             type: "array",
             items: { type: "string" },
           },
-          estimatedMinutes: { type: "integer", minimum: 1, maximum: 240 },
+          estimatedMinutes: { type: "integer" },
           cautions: {
             type: "array",
-            minItems: 1,
             items: { type: "string" },
           },
         },
@@ -68,7 +71,6 @@ const routineResultJsonSchema = {
     },
     generalCautions: {
       type: "array",
-      minItems: 1,
       items: { type: "string" },
     },
   },
@@ -239,6 +241,25 @@ export async function POST(request: Request) {
   }
 
   const input = inputResult.data;
+  const dailyRange = getRoutineDailyRange();
+  const { count: routineCount, error: routineCountError } = await supabase
+    .from("routine_recommendations")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("created_at", dailyRange.start)
+    .lt("created_at", dailyRange.end);
+
+  if (routineCountError) {
+    return NextResponse.json({ error: routineCountError.message }, { status: 500 });
+  }
+
+  if (hasReachedRoutineDailyLimit(routineCount ?? 0)) {
+    return NextResponse.json(
+      { error: `AI 루틴은 하루 ${ROUTINE_DAILY_LIMIT}회까지 생성할 수 있습니다.` },
+      { status: 429 },
+    );
+  }
+
   const { data: car, error: carError } = await supabase
     .from("cars")
     .select("id")
@@ -255,6 +276,7 @@ export async function POST(request: Request) {
   }
 
   let isFallback = false;
+  let fallbackReason = "";
   let result: RoutineResult;
 
   try {
@@ -262,6 +284,8 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError || error instanceof SyntaxError) {
       isFallback = true;
+      fallbackReason = getRoutineFallbackReason(error);
+      console.error("[routine] Falling back to safe routine.", { fallbackReason });
       result = createFallbackRoutine(input);
     } else if (error instanceof Error && error.message.includes("OPENAI_API_KEY")) {
       return NextResponse.json(
@@ -270,6 +294,8 @@ export async function POST(request: Request) {
       );
     } else {
       isFallback = true;
+      fallbackReason = getRoutineFallbackReason(error);
+      console.error("[routine] Falling back to safe routine.", { fallbackReason });
       result = createFallbackRoutine(input);
     }
   }
@@ -287,5 +313,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     routineId: data.id,
     isFallback,
+    fallbackReason: isFallback ? fallbackReason : undefined,
   });
 }

@@ -1,37 +1,28 @@
 # Security And RLS
 
-이 문서는 Detailog MVP에서 Supabase에 수동으로 적용해야 하는 최소 권한 정책을
-정리합니다. 애플리케이션의 `user_id` 및 `visibility` 필터는 빠른 실패와 명확한
-동작을 위한 방어 계층이며, 최종 권한 보장은 반드시 RLS가 담당해야 합니다.
-
-정책 적용 전 기존 정책 이름과 충돌하지 않는지 확인하고, 테스트 Supabase
-프로젝트에서 먼저 검증합니다.
+이 문서는 Detailog에서 Supabase RLS를 적용할 때 지켜야 하는 최소 권한 기준을 정리합니다. 앱 코드의 `user_id`와 `visibility` 필터는 사용자 경험을 위한 1차 방어이고, 최종 데이터 보호는 RLS가 담당해야 합니다.
 
 ## 기본 원칙
 
-- `profiles`, `cars`, `wash_logs`, `routine_recommendations`의 변경은
-  `auth.uid()`가 소유자인 행으로 제한합니다.
-- `wash_steps`, `wash_images`의 변경은 부모 `wash_logs.user_id`가
-  `auth.uid()`인 경우로 제한합니다.
-- community 조회는 `wash_logs.visibility = 'public'`인 부모를 통해서만
-  허용합니다.
-- `reactions` 변경은 본인의 반응이며 부모 wash log가 public인 경우로
-  제한합니다.
-- `service_role` key는 브라우저나 `NEXT_PUBLIC_*` 환경 변수에 두지 않습니다.
+- 개인 데이터 변경은 `auth.uid()`가 소유자인 row로 제한합니다.
+- 비공개 세차 기록은 작성자만 읽을 수 있습니다.
+- 공개 세차 기록은 커뮤니티와 랜딩 미리보기에 노출될 수 있습니다.
+- 브라우저에는 `service_role` key를 절대 노출하지 않습니다.
 
-## 테이블 RLS 활성화
+## Public Landing Preview
 
-```sql
-alter table public.profiles enable row level security;
-alter table public.cars enable row level security;
-alter table public.wash_logs enable row level security;
-alter table public.wash_steps enable row level security;
-alter table public.wash_images enable row level security;
-alter table public.routine_recommendations enable row level security;
-alter table public.reactions enable row level security;
-```
+랜딩 홈(`/`)은 로그인하지 않은 방문자에게 최근 공개 세차 기록을 미리 보여줍니다. 이를 위해 anon role에는 아래 데이터만 읽기 권한을 줍니다.
+
+- `public.wash_logs`: `visibility = 'public'`인 row
+- `public.wash_images`: 공개 wash log에 연결된 이미지 row
+- `public.cars`: 공개 wash log에 연결된 차량 요약 row
+- `public.community_profiles`: 공개 표시용 `id`, `nickname`, `avatar_url` view
+
+쓰기, 수정, 삭제는 계속 authenticated 사용자에게만 허용합니다. 공개 홈에서 필요한 데이터가 늘어나면 먼저 공개해도 되는 정보인지 검토하고, 가능하면 table 전체가 아니라 view 또는 제한된 select 정책을 사용합니다.
 
 ## Profiles
+
+`profiles` table은 본인만 직접 읽고 수정할 수 있습니다. 다른 사용자의 공개 표시 정보는 `community_profiles` view를 통해서만 읽습니다.
 
 ```sql
 create policy "Users can read own profile"
@@ -48,250 +39,62 @@ using (id = auth.uid())
 with check (id = auth.uid());
 ```
 
-RLS는 열 단위 접근을 제한하지 못합니다. community에서 다른 사용자의
-`nickname`만 제공하려면 `id`, `nickname`만 노출하는 제한된
-`community_profiles` view 또는 RPC를 사용해야 합니다. 다른 사용자의
-`profiles` 행을 직접 select하도록 허용하면 `email`도 조회될 수 있으므로
-금지합니다.
-
-## Cars
-
-```sql
-create policy "Users can read own cars"
-on public.cars for select to authenticated
-using (user_id = auth.uid());
-
-create policy "Users can insert own cars"
-on public.cars for insert to authenticated
-with check (user_id = auth.uid());
-
-create policy "Users can update own cars"
-on public.cars for update to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
-
-create policy "Users can delete own cars"
-on public.cars for delete to authenticated
-using (user_id = auth.uid());
-```
-
-community에서 공개할 차량 요약은 `id`, `name`, `brand`, `model`만 노출하는
-별도 view 또는 RPC가 안전합니다. public wash log를 이유로 `cars` 행 전체를
-select 허용하면 `memo`, `color`, `coating_type` 등도 직접 조회될 수 있습니다.
-
 ## Wash Logs
+
+Authenticated 사용자는 본인 기록과 공개 기록을 읽을 수 있습니다. Anon 사용자는 랜딩 미리보기를 위해 공개 기록만 읽을 수 있습니다.
 
 ```sql
 create policy "Users can read own or public wash logs"
 on public.wash_logs for select to authenticated
 using (user_id = auth.uid() or visibility = 'public');
 
-create policy "Users can insert own wash logs for own cars"
-on public.wash_logs for insert to authenticated
-with check (
-  user_id = auth.uid()
-  and exists (
-    select 1 from public.cars
-    where cars.id = wash_logs.car_id
-      and cars.user_id = auth.uid()
-  )
-);
-
-create policy "Users can update own wash logs for own cars"
-on public.wash_logs for update to authenticated
-using (user_id = auth.uid())
-with check (
-  user_id = auth.uid()
-  and exists (
-    select 1 from public.cars
-    where cars.id = wash_logs.car_id
-      and cars.user_id = auth.uid()
-  )
-);
-
-create policy "Users can delete own wash logs"
-on public.wash_logs for delete to authenticated
-using (user_id = auth.uid());
+create policy "Public wash logs are readable by anonymous visitors"
+on public.wash_logs for select to anon
+using (visibility = 'public');
 ```
 
-## Wash Steps
-
-```sql
-create policy "Users can read steps for own or public wash logs"
-on public.wash_steps for select to authenticated
-using (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_steps.wash_log_id
-      and (wash_logs.user_id = auth.uid() or wash_logs.visibility = 'public')
-  )
-);
-
-create policy "Users can insert steps for own wash logs"
-on public.wash_steps for insert to authenticated
-with check (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_steps.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-);
-
-create policy "Users can update steps for own wash logs"
-on public.wash_steps for update to authenticated
-using (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_steps.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_steps.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-);
-
-create policy "Users can delete steps for own wash logs"
-on public.wash_steps for delete to authenticated
-using (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_steps.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-);
-```
+Insert, update, delete는 본인 소유 차량과 기록으로 제한합니다.
 
 ## Wash Images
 
-`wash_images` 정책은 `wash_steps`와 동일한 부모 소유권 구조를 사용합니다.
+Authenticated 사용자는 본인 기록 또는 공개 기록의 이미지 row를 읽을 수 있습니다. Anon 사용자는 공개 기록에 연결된 이미지 row만 읽을 수 있습니다.
 
 ```sql
-create policy "Users can read images for own or public wash logs"
-on public.wash_images for select to authenticated
+create policy "Public wash images are readable by anonymous visitors"
+on public.wash_images for select to anon
 using (
   exists (
     select 1 from public.wash_logs
     where wash_logs.id = wash_images.wash_log_id
-      and (wash_logs.user_id = auth.uid() or wash_logs.visibility = 'public')
-  )
-);
-
-create policy "Users can insert images for own wash logs"
-on public.wash_images for insert to authenticated
-with check (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_images.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-);
-
-create policy "Users can update images for own wash logs"
-on public.wash_images for update to authenticated
-using (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_images.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_images.wash_log_id
-      and wash_logs.user_id = auth.uid()
-  )
-);
-
-create policy "Users can delete images for own wash logs"
-on public.wash_images for delete to authenticated
-using (
-  exists (
-    select 1 from public.wash_logs
-    where wash_logs.id = wash_images.wash_log_id
-      and wash_logs.user_id = auth.uid()
+      and wash_logs.visibility = 'public'
   )
 );
 ```
 
-## AI Routines
+`wash-images` bucket은 public bucket입니다. 비공개 기록의 이미지 URL을 아는 사용자가 객체에 직접 접근할 수 있으므로, 비공개 이미지 보호가 필요해지면 private bucket과 signed URL 발급 방식으로 전환해야 합니다.
+
+## Cars
+
+차량 table은 기본적으로 본인 차량만 읽고 수정합니다. 다만 공개 세차 기록 카드의 차량 요약을 표시하기 위해 anon은 공개 wash log에 연결된 차량 row만 읽을 수 있습니다.
 
 ```sql
-create policy "Users can read own routines"
-on public.routine_recommendations for select to authenticated
-using (user_id = auth.uid());
-
-create policy "Users can insert own routines for own cars"
-on public.routine_recommendations for insert to authenticated
-with check (
-  user_id = auth.uid()
-  and exists (
-    select 1 from public.cars
-    where cars.id = routine_recommendations.car_id
-      and cars.user_id = auth.uid()
+create policy "Public cars are readable by anonymous visitors"
+on public.cars for select to anon
+using (
+  exists (
+    select 1 from public.wash_logs
+    where wash_logs.car_id = cars.id
+      and wash_logs.visibility = 'public'
   )
 );
-
-create policy "Users can update own routines for own cars"
-on public.routine_recommendations for update to authenticated
-using (user_id = auth.uid())
-with check (
-  user_id = auth.uid()
-  and exists (
-    select 1 from public.cars
-    where cars.id = routine_recommendations.car_id
-      and cars.user_id = auth.uid()
-  )
-);
-
-create policy "Users can delete own routines"
-on public.routine_recommendations for delete to authenticated
-using (user_id = auth.uid());
 ```
+
+차량의 민감한 필드가 늘어나면 공개용 view를 분리해야 합니다.
 
 ## Reactions
 
-`docs/reactions-setup.md`의 정책을 적용합니다. 핵심 조건은 select가 public
-wash log로 제한되고, insert/delete는 `user_id = auth.uid()`이며 부모 wash
-log가 public인 경우로 제한되는 것입니다.
+반응은 공개 wash log에만 생성할 수 있고, insert/delete는 `user_id = auth.uid()`로 제한합니다. 랜딩 미리보기는 현재 반응 데이터를 읽지 않습니다.
 
 ## Storage
 
-현재 object path는 `{userId}/{washLogId}/{fileName}` 형식입니다.
-
-```sql
-create policy "Users can upload own wash images"
-on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'wash-images'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
-
-create policy "Users can update own wash image objects"
-on storage.objects for update to authenticated
-using (
-  bucket_id = 'wash-images'
-  and owner_id = auth.uid()::text
-)
-with check (
-  bucket_id = 'wash-images'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
-
-create policy "Users can delete own wash image objects"
-on storage.objects for delete to authenticated
-using (
-  bucket_id = 'wash-images'
-  and owner_id = auth.uid()::text
-);
-```
-
-`wash-images`가 public bucket이면 private wash log의 이미지도 URL을 아는
-사용자가 직접 열 수 있습니다. private 이미지 자체의 비공개 보장이 필요하면
-bucket을 private으로 전환하고, 소유자 또는 public 부모 기록에 대해서만
-server-side signed URL을 발급하는 별도 작업이 필요합니다.
-
+`avatars`와 `wash-images`는 사용자 ID로 시작하는 object path를 사용합니다. 업로드, 교체, 삭제는 해당 top-level folder가 `auth.uid()`와 일치할 때만 허용합니다.

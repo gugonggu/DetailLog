@@ -4,9 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { InputHTMLAttributes } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, type FieldError, type UseFormRegisterReturn } from "react-hook-form";
 
+import { loadRoutinePreferences, saveRoutinePreferences } from "./routine-preferences";
 import { routineInputSchema, type RoutineInputValues } from "./schemas";
 
 type RoutineCarOption = {
@@ -25,6 +26,7 @@ type RoutineFormProps = {
 type RoutineApiResponse = {
   routineId?: string;
   isFallback?: boolean;
+  fallbackReason?: string;
   error?: string;
 };
 
@@ -74,6 +76,13 @@ export function RoutineForm({ cars }: RoutineFormProps) {
     defaultValues: initialValues,
   });
 
+  useEffect(() => {
+    const preferences = loadRoutinePreferences(window.localStorage);
+
+    setValue("ownedProducts", preferences.ownedProducts, { shouldValidate: true });
+    setValue("cautions", preferences.cautions, { shouldValidate: true });
+  }, [setValue]);
+
   async function onSubmit(values: RoutineInputValues) {
     setFormError("");
     setFallbackMessage("");
@@ -93,9 +102,16 @@ export function RoutineForm({ cars }: RoutineFormProps) {
       return;
     }
 
+    saveRoutinePreferences(window.localStorage, {
+      ownedProducts: values.ownedProducts,
+      cautions: values.cautions,
+    });
+
     if (payload.isFallback) {
       setFallbackMessage(
-        "AI 응답을 검증하지 못해 기본 안전 루틴으로 저장했습니다. 상세 화면에서 내용을 확인해 주세요.",
+        payload.fallbackReason
+          ? `AI 응답을 검증하지 못해 기본 안전 루틴으로 저장했습니다. 원인: ${payload.fallbackReason}`
+          : "AI 응답을 검증하지 못해 기본 안전 루틴으로 저장했습니다. 상세 화면에서 내용을 확인해 주세요.",
       );
     }
 

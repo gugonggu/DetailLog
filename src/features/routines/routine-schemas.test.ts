@@ -38,6 +38,39 @@ describe("routine schemas", () => {
     }
   });
 
+  it("accepts more than twelve owned products for routine input", () => {
+    const result = routineInputSchema.safeParse({
+      carId: "car-id",
+      carColor: "White",
+      coatingType: "Ceramic",
+      dirtLevel: 4,
+      environment: "self_wash_bay",
+      experienceLevel: "beginner",
+      targetTime: 60,
+      goals: ["safe wash"],
+      ownedProducts: [
+        "wheel cleaner",
+        "tire cleaner",
+        "pre wash",
+        "car shampoo",
+        "tire dressing",
+        "drying towel",
+        "spray wax",
+        "glass cleaner",
+        "interior cleaner",
+        "leather cleaner",
+        "leather coating",
+        "pressure sprayer",
+        "brush",
+        "wash mitt",
+        "paint cleaner",
+      ],
+      cautions: [],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects a routine result without cautions", () => {
     const result = routineResultSchema.safeParse({
       title: "Safe ceramic maintenance wash",
@@ -58,6 +91,45 @@ describe("routine schemas", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts routine result steps with more than twelve product references", () => {
+    const result = routineResultSchema.safeParse({
+      title: "Owned product wash",
+      summary: "A routine that uses the user's available wash products.",
+      estimatedTime: 60,
+      difficulty: "normal",
+      steps: [
+        {
+          order: 1,
+          title: "Use available products",
+          description: "Group available wash products by surface and use them safely.",
+          products: [
+            "wheel cleaner",
+            "tire cleaner",
+            "pre wash",
+            "car shampoo",
+            "tire dressing",
+            "drying towel",
+            "spray wax",
+            "glass cleaner",
+            "interior cleaner",
+            "leather cleaner",
+            "leather coating",
+            "pressure sprayer",
+            "brush",
+            "wash mitt",
+            "paint cleaner",
+          ],
+          estimatedMinutes: 30,
+          cautions: ["Do not let cleaners dry on hot panels."],
+        },
+      ],
+      missingProducts: [],
+      generalCautions: ["Test unfamiliar products on a small area first."],
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("prepares a Supabase insert payload with input and result JSON", () => {

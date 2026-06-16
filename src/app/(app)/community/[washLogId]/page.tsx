@@ -20,6 +20,7 @@ import {
   getAuthorNickname,
   getCarSummary,
   mapCommunityDetailRow,
+  signCommunityWashLogRows,
 } from "@/features/community/community-service";
 import type {
   CommunityProfileRow,
@@ -88,7 +89,7 @@ export default async function CommunityDetailPage({
   const profileResult = data
     ? await supabase
         .from("community_profiles")
-        .select("id,nickname")
+        .select("id,nickname,avatar_url")
         .eq("id", data.user_id)
         .maybeSingle()
     : { data: null, error: null };
@@ -100,9 +101,13 @@ export default async function CommunityDetailPage({
         .eq("wash_log_id", washLogId)
     : { data: [], error: null };
 
-  const washLog = data
+  const [signedData] = data
+    ? await signCommunityWashLogRows(supabase, [data as CommunityWashLogRow])
+    : [];
+
+  const washLog = signedData
     ? mapCommunityDetailRow(
-        data as CommunityWashLogRow,
+        signedData,
         profileResult.data as CommunityProfileRow | null,
         (reactionResult.data ?? []) as CommunityReactionRow[],
         user.id,

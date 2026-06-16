@@ -4,11 +4,13 @@ import type { WashLog, WashLogRow } from "../wash-logs/types";
 export type CommunityAuthor = {
   id: string;
   nickname: string;
+  avatarUrl: string | null;
 };
 
 export type CommunityProfileRow = {
   id: string;
   nickname: string;
+  avatar_url?: string | null;
 };
 
 export type CommunityReactionType = "like" | "bookmark";

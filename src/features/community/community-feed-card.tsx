@@ -1,4 +1,4 @@
-import { ImageIcon, Star } from "lucide-react";
+import { ImageIcon, Star, UserRound } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -46,9 +46,23 @@ export function CommunityFeedCard({ item, currentUserId }: CommunityFeedCardProp
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="truncate text-lg font-semibold">{item.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
+                  {item.author.avatarUrl ? (
+                    <Image
+                      src={item.author.avatarUrl}
+                      alt={`${getAuthorNickname(item.author)} 아바타`}
+                      fill
+                      className="object-cover"
+                      sizes="24px"
+                      unoptimized
+                    />
+                  ) : (
+                    <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                </span>
                 {getAuthorNickname(item.author)}
-              </p>
+              </div>
             </div>
             <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
               공개

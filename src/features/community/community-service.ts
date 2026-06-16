@@ -1,4 +1,5 @@
 import { mapWashLogRowToWashLog } from "../wash-logs/wash-log-service";
+import { signWashImageRows } from "../wash-images/wash-image-service";
 import type { WashImage } from "../wash-images/types";
 import type {
   CommunityAuthor,
@@ -72,6 +73,7 @@ function createCommunityItem(
   const author = {
     id: washLog.userId,
     nickname: profile?.nickname ?? "Detailog 사용자",
+    avatarUrl: profile?.avatar_url ?? null,
   };
 
   return {
@@ -93,6 +95,30 @@ export function mapCommunityFeedRows(
   return rows
     .map((row) => createCommunityItem(row, profileMap, reactions, currentUserId))
     .filter((item): item is CommunityFeedItem => Boolean(item));
+}
+
+export function mapLandingPreviewRows(
+  rows: CommunityWashLogRow[],
+  profiles: CommunityProfileRow[],
+  limit = 3,
+) {
+  return mapCommunityFeedRows(rows, profiles).slice(0, limit);
+}
+
+type CommunitySigningSupabaseClient = Parameters<typeof signWashImageRows>[0];
+
+export async function signCommunityWashLogRows<T extends CommunityWashLogRow>(
+  supabase: CommunitySigningSupabaseClient,
+  rows: T[],
+) {
+  return Promise.all(
+    rows.map(async (row) => ({
+      ...row,
+      wash_images: row.wash_images
+        ? await signWashImageRows(supabase, row.wash_images)
+        : row.wash_images,
+    })),
+  );
 }
 
 export function mapCommunityDetailRow(
