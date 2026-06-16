@@ -2,7 +2,7 @@
 
 차량별 세차 기록을 관리하고, AI 세차 루틴을 추천받으며, 공개 기록을 커뮤니티에 공유할 수 있는 반응형 웹 서비스입니다.
 
-Detailog는 단순 CRUD를 넘어 인증, 데이터 권한, 이미지 업로드, AI API, 공개 커뮤니티, 배포 전 보안 보강까지 연결한 풀스택 포트폴리오 프로젝트입니다.
+Detailog는 단순 CRUD를 넘어 인증, 데이터 권한, 이미지 업로드, AI API, 공개 커뮤니티, 배포 전 보안 보강까지 연결한 풀스택 프로젝트입니다.
 
 ## 핵심 기능
 
@@ -54,16 +54,6 @@ docs             Architecture, decisions, security, portfolio notes
 - `/` 랜딩 페이지는 비로그인 사용자에게도 접근 가능합니다.
 - 랜딩의 커뮤니티 preview는 최근 공개 세차 기록 일부만 보여주며, 익명 권한은 이 preview에 필요한 최소 데이터로 제한합니다.
 - `/community`, `/community/[washLogId]`, `/bookmarks`는 로그인 후 사용하는 제품 영역입니다. 전체 탐색, 좋아요, 북마크는 사용자 맥락이 필요하므로 app route group 안에 둡니다.
-
-## 포트폴리오 시연 데이터
-
-데모 영상이나 스크린샷을 준비할 때는 실제 제품처럼 보이도록 다음 데이터를 먼저 넣는 것을 권장합니다.
-
-- 브랜드/모델이 다른 차량 2대 이상
-- before, process, after 대표 이미지가 포함된 공개 세차 기록 3개 이상
-- 비공개 세차 기록 1개 이상
-- 저장된 AI 루틴 추천 1개 이상
-- 좋아요와 북마크가 있는 공개 기록
 
 자세한 기술 설명은 [docs/portfolio-technical-summary.md](docs/portfolio-technical-summary.md)를 참고하세요.
 

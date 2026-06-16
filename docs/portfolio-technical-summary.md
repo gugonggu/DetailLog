@@ -288,19 +288,3 @@ npm run lint
 npm run build
 npm audit --audit-level=moderate
 ```
-
-## 포트폴리오에서 강조할 점
-
-- 인증, RLS, Storage, AI API, 커뮤니티까지 연결한 풀스택 구현 경험
-- 공개/비공개 데이터 경계를 실제 보안 정책으로 설계한 경험
-- AI 기능 실패를 fallback으로 처리한 제품 안정성 설계
-- public bucket 문제를 private bucket + signed URL로 개선한 보안 개선 경험
-- 단순 구현이 아니라 테스트, 빌드, audit, Supabase remote migration까지 확인한 배포 준비 과정
-
-## 개선 여지
-
-- 커뮤니티 pagination과 정렬 옵션 추가
-- AI 루틴 생성 이력 검색
-- 이미지 최적화와 CDN 캐시 정책 개선
-- Playwright 기반 E2E 테스트 추가
-- 배포 후 error monitoring과 analytics 연결
