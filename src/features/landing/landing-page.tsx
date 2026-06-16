@@ -42,8 +42,8 @@ const productHighlights = [
     icon: BookOpenCheck,
   },
   {
-    title: "루틴 추천 준비",
-    description: "차량 상태와 선호도를 바탕으로 다음 세차 루틴을 추천받는 구조를 갖춥니다.",
+    title: "AI 세차 루틴 추천",
+    description: "차량 상태와 선호도를 바탕으로 다음 세차 순서와 주의사항을 AI로 추천받을 수 있습니다.",
     icon: Sparkles,
   },
   {
@@ -182,7 +182,7 @@ export function LandingPage({
             className="relative min-h-[340px] bg-cover bg-center"
             style={{
               backgroundImage:
-                "linear-gradient(180deg, rgba(15,23,42,0.1), rgba(15,23,42,0.68)), url('https://source.unsplash.com/mIWqZ3LsdCc/1200x900')",
+                "linear-gradient(180deg, rgba(15,23,42,0.1), rgba(15,23,42,0.68)), url('/images/landing-hero.svg')",
             }}
           >
             <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">

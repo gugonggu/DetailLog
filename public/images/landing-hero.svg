@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Detailog car wash hero image</title>
+  <desc id="desc">A stylized car wash scene with a clean car, water, and detailing tools.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#dff7fb"/>
+      <stop offset="0.52" stop-color="#f5fbfc"/>
+      <stop offset="1" stop-color="#f8f1df"/>
+    </linearGradient>
+    <linearGradient id="paint" x1="0" x2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.45" stop-color="#25324a"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="foam" x1="0" x2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#d9fbff" stop-opacity="0.88"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="900" fill="url(#sky)"/>
+  <path d="M0 620c150-55 308-66 474-33 159 32 294 24 425-17 119-37 219-38 301-4v334H0Z" fill="#d6f2ef"/>
+  <path d="M0 710c193-54 386-63 579-27 204 39 411 23 621-49v266H0Z" fill="#c2e4df"/>
+  <g opacity="0.52">
+    <circle cx="129" cy="159" r="58" fill="#ffffff"/>
+    <circle cx="1090" cy="174" r="82" fill="#ffffff"/>
+    <circle cx="1014" cy="125" r="22" fill="#a9dce4"/>
+  </g>
+  <g transform="translate(155 342)" filter="url(#softShadow)">
+    <path d="M96 274h780c38 0 69 31 69 69v14H27v-14c0-38 31-69 69-69Z" fill="#172033"/>
+    <path d="M160 156c43-78 103-117 180-117h240c67 0 125 35 174 106l84 124H74Z" fill="url(#paint)"/>
+    <path d="M273 76h291c50 0 96 28 138 84l54 72H124l56-88c24-38 55-60 93-68Z" fill="#2c3a56"/>
+    <path d="M314 104h219c44 0 82 20 115 61l31 39H236l28-45c14-23 31-41 50-55Z" fill="#b9edf5"/>
+    <path d="M94 258h792c33 0 60 27 60 60v45H34v-45c0-33 27-60 60-60Z" fill="url(#paint)"/>
+    <path d="M49 324h879v35H49Z" fill="#111827"/>
+    <circle cx="225" cy="356" r="72" fill="#0b1020"/>
+    <circle cx="225" cy="356" r="37" fill="#e8f8fb"/>
+    <circle cx="225" cy="356" r="18" fill="#93cbd4"/>
+    <circle cx="735" cy="356" r="72" fill="#0b1020"/>
+    <circle cx="735" cy="356" r="37" fill="#e8f8fb"/>
+    <circle cx="735" cy="356" r="18" fill="#93cbd4"/>
+    <path d="M108 295c54 20 134 31 239 34 94 2 194-7 299-27 113-21 196-24 249-9" fill="none" stroke="#7dd3fc" stroke-width="13" stroke-linecap="round" opacity="0.7"/>
+    <path d="M234 223c50 10 112 12 185 5 87-8 148-4 183 11" fill="none" stroke="#e0faff" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+  </g>
+  <g fill="url(#foam)" opacity="0.92">
+    <circle cx="256" cy="257" r="21"/>
+    <circle cx="313" cy="225" r="15"/>
+    <circle cx="847" cy="283" r="24"/>
+    <circle cx="915" cy="247" r="14"/>
+    <circle cx="775" cy="199" r="10"/>
+    <circle cx="403" cy="296" r="12"/>
+  </g>
+  <g stroke="#0891b2" stroke-linecap="round" opacity="0.42">
+    <path d="M909 135 806 307" stroke-width="8"/>
+    <path d="M958 159 842 340" stroke-width="5"/>
+    <path d="M260 142 181 289" stroke-width="5"/>
+    <path d="M332 128 244 287" stroke-width="7"/>
+  </g>
+  <g transform="translate(811 575)">
+    <rect x="0" y="63" width="216" height="58" rx="18" fill="#0f172a" opacity="0.16"/>
+    <rect x="23" y="0" width="86" height="118" rx="16" fill="#0e7490"/>
+    <rect x="43" y="16" width="46" height="28" rx="8" fill="#dff7fb"/>
+    <path d="M130 22h44c22 0 39 17 39 39v6h-83Z" fill="#f59e0b"/>
+    <rect x="124" y="67" width="96" height="34" rx="12" fill="#fbbf24"/>
+  </g>
+</svg>

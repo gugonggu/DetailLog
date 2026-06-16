@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import type { CarRow } from "@/features/cars/types";
+import { WashImageManager } from "@/features/wash-images/wash-image-manager";
+import { signWashImages } from "@/features/wash-images/wash-image-service";
 import { mapWashLogRowToWashLog } from "@/features/wash-logs/wash-log-service";
 import { WashLogForm } from "@/features/wash-logs/wash-log-form";
 import type { WashLogRow } from "@/features/wash-logs/types";
@@ -15,7 +17,7 @@ type EditWashLogPageProps = {
 };
 
 const washLogSelect =
-  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at)";
+  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,object_path,image_url,image_type,is_representative,created_at)";
 
 export default async function EditWashLogPage({ params }: EditWashLogPageProps) {
   const { washLogId } = await params;
@@ -53,6 +55,7 @@ export default async function EditWashLogPage({ params }: EditWashLogPageProps) 
   }
 
   const washLog = washLogData ? mapWashLogRowToWashLog(washLogData as WashLogRow) : null;
+  const signedImages = washLog ? await signWashImages(supabase, washLog.images) : [];
   const cars = ((carData ?? []) as CarRow[]).map((car) => ({
     id: car.id,
     name: car.name,
@@ -61,7 +64,7 @@ export default async function EditWashLogPage({ params }: EditWashLogPageProps) 
   }));
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
+    <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8">
       <Link
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
         href={washLog ? `/wash/${washLog.id}` : "/wash"}
@@ -82,7 +85,7 @@ export default async function EditWashLogPage({ params }: EditWashLogPageProps) 
             <p className="text-sm font-semibold text-primary">Edit Wash Log</p>
             <h1 className="mt-3 text-3xl font-bold">세차 기록 수정</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              세차 정보와 단계 기록을 수정합니다. 이미지와 AI 추천은 이번 범위에 포함하지 않습니다.
+              세차 정보, 단계 기록, 이미지를 한 화면에서 수정합니다.
             </p>
           </section>
           <section className="mt-8">
@@ -112,6 +115,11 @@ export default async function EditWashLogPage({ params }: EditWashLogPageProps) 
               }}
             />
           </section>
+          <WashImageManager
+            userId={user.id}
+            washLogId={washLog.id}
+            initialImages={signedImages}
+          />
         </>
       ) : null}
     </main>

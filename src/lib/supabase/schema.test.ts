@@ -15,6 +15,10 @@ const securityHardeningMigrationPath = resolve(
   process.cwd(),
   "supabase/migrations/20260616002000_security_hardening.sql",
 );
+const transactionMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20260616003000_wash_log_transactions_and_object_paths.sql",
+);
 
 function readMigration() {
   return readFileSync(migrationPath, "utf8").toLowerCase();
@@ -76,5 +80,16 @@ describe("Supabase schema", () => {
     expect(migration).toContain("image/webp");
     expect(migration).toContain("public wash image objects are readable by anonymous visitors");
     expect(migration).toContain("routine_recommendations_user_recent_idx");
+  });
+
+  it("stores wash image object paths and defines atomic wash log RPC functions", () => {
+    const migration = readFileSync(transactionMigrationPath, "utf8").toLowerCase();
+
+    expect(migration).toContain("add column if not exists object_path");
+    expect(migration).toContain("create or replace function public.create_wash_log_with_steps");
+    expect(migration).toContain("create or replace function public.update_wash_log_with_steps");
+    expect(migration).toContain("jsonb_array_elements");
+    expect(migration).toContain("delete from public.wash_steps");
+    expect(migration).toContain("grant execute on function public.create_wash_log_with_steps");
   });
 });

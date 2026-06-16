@@ -48,11 +48,13 @@ Confirm required environment variables exist in `.env.local` and Vercel project 
 
 ## Private 세차 이미지가 URL로 계속 열림
 
-현재 `wash-images` bucket은 public URL을 사용합니다. 데이터베이스 RLS는
-`wash_images` 행을 숨길 수 있지만 이미 알려진 public object URL 접근을 막을
-수 없습니다. 이미지 자체의 비공개 보장이 필요하면 private Storage bucket과
-서버 발급 signed URL이 필요합니다. Storage 변경 정책은 별도로 upload, update,
-delete를 인증 사용자의 소유 경로로 제한해야 합니다.
+`wash-images` bucket은 private bucket이어야 하고, 화면에서는 서버가 발급한
+signed URL만 사용해야 합니다. 비공개 이미지가 직접 URL로 계속 열린다면
+Supabase Storage bucket public 설정, object select policy, 그리고 앱이
+`wash_images.object_path` 기준으로 signed URL을 발급하는지 확인합니다.
+
+여러 장 업로드 중 실패가 발생하면 이번 업로드 세션에서 만들어진
+`wash_images` row와 Storage object가 정리되는지도 확인합니다.
 
 ## Build Fails With useSearchParams
 

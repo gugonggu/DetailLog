@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { ImagePlus, Plus, Save, Star, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { InputHTMLAttributes } from "react";
-import { useState } from "react";
+import { type ChangeEvent, type InputHTMLAttributes, useEffect, useRef, useState } from "react";
 import {
   useFieldArray,
   useForm,
@@ -13,10 +13,19 @@ import {
 } from "react-hook-form";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  validateImageUploadFile,
+  WASH_IMAGE_MAX_SIZE_BYTES,
+} from "@/features/uploads/image-upload-policy";
+import {
+  type PendingWashImageUpload,
+  uploadWashImagesForLog,
+} from "@/features/wash-images/wash-image-service";
+import type { WashImageType } from "@/features/wash-images/types";
 
 import {
-  createWashLogInsertPayload,
-  createWashLogUpdatePayload,
+  createWashLogRpcPayload,
   isOwnedCarId,
 } from "./wash-log-service";
 import { washLogFormSchema, type WashLogFormValues } from "./schemas";
@@ -38,7 +47,19 @@ type WashLogFormProps = {
   defaultValues?: WashLogFormValues;
 };
 
+type SelectedFormImage = PendingWashImageUpload & {
+  id: string;
+  previewUrl: string;
+};
+
 const today = new Date().toISOString().slice(0, 10);
+
+const imageTypeOptions: { value: WashImageType; label: string }[] = [
+  { value: "before", label: "세차 전" },
+  { value: "process", label: "과정" },
+  { value: "after", label: "세차 후" },
+  { value: "etc", label: "기타" },
+];
 
 const emptyValues: WashLogFormValues = {
   carId: "",
@@ -71,6 +92,9 @@ export function WashLogForm({
 }: WashLogFormProps) {
   const router = useRouter();
   const [formError, setFormError] = useState("");
+  const [imageError, setImageError] = useState("");
+  const [selectedImages, setSelectedImages] = useState<SelectedFormImage[]>([]);
+  const previewUrlsRef = useRef<string[]>([]);
 
   const {
     control,
@@ -87,8 +111,59 @@ export function WashLogForm({
     name: "steps",
   });
 
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+    };
+  }, []);
+
+  function handleSelectImages(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const invalidFile = selectedFiles
+      .map((file) => validateImageUploadFile(file, WASH_IMAGE_MAX_SIZE_BYTES))
+      .find((result) => !result.valid);
+
+    if (invalidFile && !invalidFile.valid) {
+      setSelectedImages([]);
+      setImageError(invalidFile.error);
+      event.target.value = "";
+      return;
+    }
+
+    previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+
+    const nextImages: SelectedFormImage[] = selectedFiles.map((file, index) => ({
+      id: `${file.name}-${file.lastModified}-${file.size}`,
+      file,
+      imageType: index === 0 ? "before" : "process",
+      isRepresentative: index === 0,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    previewUrlsRef.current = nextImages.map((image) => image.previewUrl);
+    setSelectedImages(nextImages);
+    setImageError("");
+    event.target.value = "";
+  }
+
+  function updateSelectedImageType(id: string, imageType: WashImageType) {
+    setSelectedImages((current) =>
+      current.map((image) => (image.id === id ? { ...image, imageType } : image)),
+    );
+  }
+
+  function markSelectedImageRepresentative(id: string) {
+    setSelectedImages((current) =>
+      current.map((image) => ({
+        ...image,
+        isRepresentative: image.id === id,
+      })),
+    );
+  }
+
   async function onSubmit(values: WashLogFormValues) {
     setFormError("");
+    setImageError("");
 
     if (!isOwnedCarId(values.carId, cars)) {
       setFormError("현재 계정이 소유한 차량만 세차 기록에 사용할 수 있습니다.");
@@ -103,31 +178,37 @@ export function WashLogForm({
     }
 
     if (mode === "create") {
-      const payload = createWashLogInsertPayload({ userId, values });
-      const { data, error } = await supabase
-        .from("wash_logs")
-        .insert(payload.log)
-        .select("id")
-        .single();
+      const payload = createWashLogRpcPayload({ userId, values });
+      const { data, error } = await supabase.rpc("create_wash_log_with_steps", payload);
 
       if (error) {
         setFormError(error.message);
         return;
       }
 
-      const { error: stepsError } = await supabase.from("wash_steps").insert(
-        payload.steps.map((step) => ({
-          ...step,
-          wash_log_id: data.id,
-        })),
-      );
-
-      if (stepsError) {
-        setFormError(stepsError.message);
+      if (!data) {
+        setFormError("세차 기록 ID를 확인하지 못했습니다.");
         return;
       }
 
-      router.push(`/wash/${data.id}`);
+      if (selectedImages.length > 0) {
+        try {
+          await uploadWashImagesForLog(supabase, {
+            userId,
+            washLogId: data,
+            images: selectedImages,
+          });
+        } catch (uploadError) {
+          await supabase.from("wash_logs").delete().eq("id", data).eq("user_id", userId);
+          setImageError(
+            uploadError instanceof Error ? uploadError.message : "이미지 업로드에 실패했습니다.",
+          );
+          setFormError("세차 기록은 저장했지만 이미지 업로드에 실패해 저장을 취소했습니다.");
+          return;
+        }
+      }
+
+      router.push(`/wash/${data}`);
       router.refresh();
       return;
     }
@@ -137,43 +218,18 @@ export function WashLogForm({
       return;
     }
 
-    const payload = createWashLogUpdatePayload(values);
-    const { data, error } = await supabase
-      .from("wash_logs")
-      .update(payload.log)
-      .eq("id", washLogId)
-      .eq("user_id", userId)
-      .select("id")
-      .single();
+    const payload = createWashLogRpcPayload({ userId, values });
+    const { data, error } = await supabase.rpc("update_wash_log_with_steps", {
+      p_wash_log_id: washLogId,
+      ...payload,
+    });
 
     if (error) {
       setFormError(error.message);
       return;
     }
 
-    const { error: deleteStepsError } = await supabase
-      .from("wash_steps")
-      .delete()
-      .eq("wash_log_id", washLogId);
-
-    if (deleteStepsError) {
-      setFormError(deleteStepsError.message);
-      return;
-    }
-
-    const { error: stepsError } = await supabase.from("wash_steps").insert(
-      payload.steps.map((step) => ({
-        ...step,
-        wash_log_id: washLogId,
-      })),
-    );
-
-    if (stepsError) {
-      setFormError(stepsError.message);
-      return;
-    }
-
-    router.push(`/wash/${data.id}`);
+    router.push(`/wash/${data}`);
     router.refresh();
   }
 
@@ -366,6 +422,76 @@ export function WashLogForm({
           ))}
         </div>
       </section>
+
+      {mode === "create" ? (
+        <section className="mt-6 rounded-md border border-border bg-muted/20 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">이미지</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                세차 전후, 과정 사진을 기록 생성과 함께 업로드하고 대표 이미지를 지정합니다.
+              </p>
+            </div>
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold shadow-sm transition hover:border-primary">
+              <ImagePlus className="h-4 w-4" aria-hidden="true" />
+              이미지 선택
+              <input
+                className="sr-only"
+                type="file"
+                accept={IMAGE_UPLOAD_ACCEPT}
+                multiple
+                onChange={handleSelectImages}
+                disabled={isSubmitting}
+              />
+            </label>
+          </div>
+
+          {selectedImages.length > 0 ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedImages.map((image) => (
+                <div className="overflow-hidden rounded-md border border-border bg-white" key={image.id}>
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <Image
+                      src={image.previewUrl}
+                      alt={image.file.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="grid gap-2 p-3">
+                    <p className="truncate text-sm font-semibold">{image.file.name}</p>
+                    <select
+                      className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                      value={image.imageType}
+                      onChange={(event) =>
+                        updateSelectedImageType(image.id, event.target.value as WashImageType)
+                      }
+                    >
+                      {imageTypeOptions.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                      type="button"
+                      onClick={() => markSelectedImageRepresentative(image.id)}
+                      disabled={image.isRepresentative || isSubmitting}
+                    >
+                      <Star className="h-4 w-4" aria-hidden="true" />
+                      {image.isRepresentative ? "대표 이미지" : "대표로 지정"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {imageError ? <p className="mt-3 text-sm text-red-700">{imageError}</p> : null}
+        </section>
+      ) : null}
 
       {formError ? (
         <p className="mt-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">

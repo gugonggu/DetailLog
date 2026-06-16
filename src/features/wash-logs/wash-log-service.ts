@@ -28,6 +28,11 @@ type CarIdOption = {
   id: string;
 };
 
+type WashLogRpcInput = {
+  userId: string;
+  values: WashLogFormValues;
+};
+
 function nullableText(value: string) {
   const trimmed = value.trim();
 
@@ -76,6 +81,26 @@ export function createWashLogUpdatePayload(values: WashLogFormValues): WashLogPa
       visibility: values.visibility,
     },
     steps: createStepPayloads(values),
+  };
+}
+
+export function createWashLogRpcPayload({ userId, values }: WashLogRpcInput) {
+  const payload = createWashLogInsertPayload({ userId, values });
+
+  return {
+    p_user_id: userId,
+    p_car_id: payload.log.car_id,
+    p_title: payload.log.title,
+    p_wash_date: payload.log.wash_date,
+    p_location: payload.log.location,
+    p_duration_minutes: payload.log.duration_minutes,
+    p_cost: payload.log.cost,
+    p_weather: payload.log.weather,
+    p_dirt_level: payload.log.dirt_level,
+    p_satisfaction: payload.log.satisfaction,
+    p_memo: payload.log.memo,
+    p_visibility: payload.log.visibility,
+    p_steps: payload.steps,
   };
 }
 

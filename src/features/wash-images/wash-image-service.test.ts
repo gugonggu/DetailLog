@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cleanupPartialWashImageUpload,
   createWashImageObjectPath,
   getWashImageStoragePath,
   mapWashImageRowToWashImage,
   signWashImageRows,
   signWashImageUrl,
+  uploadWashImagesForLog,
 } from "./wash-image-service";
 
 describe("wash image service", () => {
@@ -70,7 +72,7 @@ describe("wash image service", () => {
     await expect(
       signWashImageUrl(
         supabase,
-        "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
+        "user-id/wash-log-id/file.jpg",
         60,
       ),
     ).resolves.toBe("signed:wash-images:user-id/wash-log-id/file.jpg:60");
@@ -80,8 +82,9 @@ describe("wash image service", () => {
     const row = {
       id: "image-id",
       wash_log_id: "wash-log-id",
+      object_path: "user-id/wash-log-id/file.jpg",
       image_url:
-        "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
+        "legacy-url",
       image_type: "before" as const,
       is_representative: true,
       created_at: "2026-05-19T00:00:00.000Z",
@@ -104,13 +107,14 @@ describe("wash image service", () => {
     const [signedRow] = await signWashImageRows(supabase, [row]);
 
     expect(signedRow.image_url).toBe("https://signed.example/file.jpg");
-    expect(row.image_url).toContain("/object/public/wash-images/");
+    expect(row.image_url).toBe("legacy-url");
   });
 
   it("maps a database row to the feature wash image type", () => {
     const image = mapWashImageRowToWashImage({
       id: "image-id",
       wash_log_id: "wash-log-id",
+      object_path: "user-id/wash-log-id/file.jpg",
       image_url: "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
       image_type: "before",
       is_representative: true,
@@ -122,9 +126,164 @@ describe("wash image service", () => {
       washLogId: "wash-log-id",
       imageUrl:
         "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
+      objectPath: "user-id/wash-log-id/file.jpg",
       imageType: "before",
       isRepresentative: true,
       createdAt: "2026-05-19T00:00:00.000Z",
     });
+  });
+
+  it("cleans up inserted image rows and uploaded storage objects after a partial upload failure", async () => {
+    const deletedRowIds: string[][] = [];
+    const removedObjectPaths: string[][] = [];
+    const supabase = {
+      from(table: string) {
+        expect(table).toBe("wash_images");
+
+        return {
+          delete() {
+            return {
+              in(column: string, values: string[]) {
+                expect(column).toBe("id");
+                deletedRowIds.push(values);
+
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      },
+      storage: {
+        from(bucket: string) {
+          expect(bucket).toBe("wash-images");
+
+          return {
+            remove(paths: string[]) {
+              removedObjectPaths.push(paths);
+
+              return Promise.resolve({ error: null });
+            },
+          };
+        },
+      },
+    };
+
+    await cleanupPartialWashImageUpload(supabase, {
+      insertedImageIds: ["image-1", "image-2"],
+      uploadedObjectPaths: ["user/wash/1.jpg", "user/wash/2.jpg"],
+    });
+
+    expect(deletedRowIds).toEqual([["image-1", "image-2"]]);
+    expect(removedObjectPaths).toEqual([["user/wash/1.jpg", "user/wash/2.jpg"]]);
+  });
+
+  it("uploads selected images for a wash log and stores the selected thumbnail", async () => {
+    const uploadedPaths: string[] = [];
+    const insertedRows: unknown[] = [];
+    let insertCount = 0;
+    const supabase = {
+      storage: {
+        from(bucket: string) {
+          expect(bucket).toBe("wash-images");
+
+          return {
+            upload(path: string) {
+              uploadedPaths.push(path);
+
+              return Promise.resolve({ error: null });
+            },
+            createSignedUrl(path: string) {
+              return Promise.resolve({
+                data: { signedUrl: `signed:${path}` },
+                error: null,
+              });
+            },
+            remove() {
+              return Promise.resolve({ error: null });
+            },
+          };
+        },
+      },
+      from(table: string) {
+        expect(table).toBe("wash_images");
+
+        return {
+          insert(row: unknown) {
+            insertedRows.push(row);
+            insertCount += 1;
+
+            return {
+              select() {
+                return {
+                  single() {
+                    return Promise.resolve({
+                      data: {
+                        id: `image-${insertCount}`,
+                        wash_log_id: "wash-log-id",
+                        object_path: `user-id/wash-log-id/177914520000${insertCount}-mock-id.jpg`,
+                        image_url: `user-id/wash-log-id/177914520000${insertCount}-mock-id.jpg`,
+                        image_type: insertCount === 1 ? "before" : "after",
+                        is_representative: insertCount === 2,
+                        created_at: "2026-06-16T00:00:00.000Z",
+                      },
+                      error: null,
+                    });
+                  },
+                };
+              },
+            };
+          },
+          delete() {
+            return {
+              in() {
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      },
+    };
+
+    const images = await uploadWashImagesForLog(supabase, {
+      userId: "user-id",
+      washLogId: "wash-log-id",
+      images: [
+        {
+          file: { name: "before.jpg", type: "image/jpeg" } as File,
+          imageType: "before",
+          isRepresentative: false,
+        },
+        {
+          file: { name: "after.jpg", type: "image/jpeg" } as File,
+          imageType: "after",
+          isRepresentative: true,
+        },
+      ],
+      timestamp: 1779145200000,
+      randomId: () => "mock-id",
+    });
+
+    expect(uploadedPaths).toEqual([
+      "user-id/wash-log-id/1779145200000-mock-id.jpg",
+      "user-id/wash-log-id/1779145200000-mock-id.jpg",
+    ]);
+    expect(insertedRows).toEqual([
+      {
+        wash_log_id: "wash-log-id",
+        object_path: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_url: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_type: "before",
+        is_representative: false,
+      },
+      {
+        wash_log_id: "wash-log-id",
+        object_path: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_url: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_type: "after",
+        is_representative: true,
+      },
+    ]);
+    expect(images).toHaveLength(2);
+    expect(images[1].isRepresentative).toBe(true);
   });
 });

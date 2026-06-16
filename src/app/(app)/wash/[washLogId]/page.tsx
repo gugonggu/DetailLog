@@ -7,11 +7,11 @@ import {
   Pencil,
   Wallet,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { WashImageManager } from "@/features/wash-images/wash-image-manager";
 import { signWashImages } from "@/features/wash-images/wash-image-service";
 import { DeleteWashLogButton } from "@/features/wash-logs/delete-wash-log-button";
 import { mapWashLogRowToWashLog } from "@/features/wash-logs/wash-log-service";
@@ -25,7 +25,14 @@ type WashLogDetailPageProps = {
 };
 
 const washLogSelect =
-  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,image_url,image_type,is_representative,created_at)";
+  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,object_path,image_url,image_type,is_representative,created_at)";
+
+const imageTypeLabels = {
+  before: "세차 전",
+  after: "세차 후",
+  process: "과정",
+  etc: "기타",
+};
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -166,11 +173,56 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
             </div>
           </section>
 
-          <WashImageManager
-            userId={user.id}
-            washLogId={washLog.id}
-            initialImages={signedImages}
-          />
+          <section className="mt-6 rounded-md border border-border bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">세차 이미지</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  이미지는 수정 화면에서 추가, 삭제, 대표 지정할 수 있습니다.
+                </p>
+              </div>
+              <Link
+                className="secondary-action h-10 px-3"
+                href={`/wash/${washLog.id}/edit`}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                이미지 수정
+              </Link>
+            </div>
+
+            {signedImages.length === 0 ? (
+              <div className="mt-5 rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                아직 등록된 세차 이미지가 없습니다.
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {signedImages.map((image) => (
+                  <article className="overflow-hidden rounded-md border border-border" key={image.id}>
+                    <div className="relative aspect-[4/3] bg-muted">
+                      <Image
+                        src={image.imageUrl}
+                        alt={`${imageTypeLabels[image.imageType]} 세차 이미지`}
+                        fill
+                        className="object-cover"
+                        sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                        unoptimized
+                      />
+                      {image.isRepresentative ? (
+                        <span className="absolute left-3 top-3 rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
+                          대표 이미지
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="p-3">
+                      <span className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-muted-foreground">
+                        {imageTypeLabels[image.imageType]}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="mt-6 rounded-md border border-border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">세차 단계</h2>

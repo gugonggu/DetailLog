@@ -72,7 +72,7 @@ Wash log CRUD is implemented under `src/features/wash-logs`. The route surface i
 - `/wash/[washLogId]`: view one owned wash log
 - `/wash/[washLogId]/edit`: edit one owned wash log
 
-The app queries `wash_logs` with `user_id` filters for list, detail, edit, update, and delete flows. `wash_steps` are managed as ordered child rows of a wash log; edit currently replaces the step set after updating the parent log. This keeps the MVP implementation small and reviewable while preserving ordered multi-step records.
+The app queries `wash_logs` with `user_id` filters for list, detail, edit, and delete flows. Create and update operations call Supabase RPC functions so `wash_logs` and ordered `wash_steps` are written in one database transaction. This prevents partial states such as a parent wash log without steps or an edited record whose previous steps were deleted before replacement steps failed to insert.
 
 세차 기록 생성 및 수정 전에 제출된 `car_id`가 현재 사용자의 서버 필터링 차량
 목록에 포함되는지 확인합니다. 변조된 요청을 애플리케이션에서 먼저 거부하기
@@ -89,16 +89,11 @@ Required persistence shape:
 
 - `wash_logs`: `id`, `user_id`, `car_id`, `title`, `wash_date`, `location`, `duration_minutes`, `cost`, `weather`, `dirt_level`, `satisfaction`, `memo`, `visibility`, `created_at`, `updated_at`
 - `wash_steps`: `id`, `wash_log_id`, `step_type`, `product_name`, `memo`, `step_order`, `created_at`
-- `wash_images`: `id`, `wash_log_id`, `image_url`, `image_type`, `is_representative`, `created_at`
+- `wash_images`: `id`, `wash_log_id`, `object_path`, `image_url`, `image_type`, `is_representative`, `created_at`
 
 Recommended constraints are `visibility in ('private', 'public')`, rating values from `1` to `5`, non-negative `cost`, positive `duration_minutes`, `wash_logs.car_id` referencing `cars(id)`, `wash_steps.wash_log_id` referencing `wash_logs(id)` with cascade delete, `wash_images.wash_log_id` referencing `wash_logs(id)` with cascade delete, and `image_type in ('before', 'after', 'process', 'etc')`. A partial unique index on `wash_images(wash_log_id) where is_representative = true` keeps one representative image per wash log. Supabase Row Level Security remains required: users can manage only `wash_logs` where `user_id = auth.uid()`, and `wash_steps` and `wash_images` access should be limited through ownership of the parent `wash_logs` row.
 
-Wash images are uploaded to Supabase Storage bucket `wash-images` using the object path `{userId}/{washLogId}/{timestamp}-{randomId}.{ext}`. The first path segment supports Storage policies that allow users to manage only their own objects. The app stores the resulting public object URL in `wash_images.image_url` and keeps metadata in the database.
-
-현재 public bucket 방식에서는 object URL을 알고 있는 사용자가 private 세차
-이미지를 직접 열 수 있습니다. 이미지 자체를 비공개로 보장하려면 private
-bucket과 서버 발급 signed URL이 필요하며, 이번 최소 인가 보강과 섞지 않고
-별도 아키텍처 변경으로 남깁니다.
+Wash images are uploaded to the private Supabase Storage bucket `wash-images` using the object path `{userId}/{washLogId}/{timestamp}-{randomId}.{ext}`. The first path segment supports Storage policies that allow users to manage only their own objects. The app stores that path in `wash_images.object_path`, keeps the legacy `image_url` column for compatibility, and renders images with server-generated signed URLs. New wash logs can include before/process/after images during the create flow; the detail page is read-only for images and sends users to the edit page for image add/delete/representative changes. When a multi-image upload partially fails, the client runs a compensation cleanup for rows and objects created during that upload attempt.
 
 ## AI Routine Recommendations
 
@@ -117,7 +112,7 @@ Recommended constraints are `routine_recommendations.car_id` referencing `cars(i
 
 ## Community
 
-Community is implemented as a signed-in product area under `src/features/community`.
+Community is implemented as a signed-in product area under `src/features/community`. Anonymous users can see only the limited public preview rendered on the landing page; the full feed, detail interaction surface, likes, and bookmarks require authentication.
 The route surface is:
 
 - `/community`: public wash log feed

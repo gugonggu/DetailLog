@@ -13,8 +13,8 @@ import {
 } from "@/features/uploads/image-upload-policy";
 
 import {
-  createWashImageObjectPath,
   getWashImageStoragePath,
+  uploadWashImagesForLog,
   WASH_IMAGE_BUCKET,
 } from "./wash-image-service";
 import type { WashImage, WashImageType } from "./types";
@@ -30,6 +30,7 @@ type SelectedImage = {
   file: File;
   previewUrl: string;
   imageType: WashImageType;
+  isRepresentative: boolean;
 };
 
 const imageTypeOptions: { value: WashImageType; label: string }[] = [
@@ -87,11 +88,12 @@ export function WashImageManager({
 
     previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
 
-    const nextImages: SelectedImage[] = files.map((file) => ({
+    const nextImages: SelectedImage[] = files.map((file, index) => ({
       id: `${file.name}-${file.lastModified}-${file.size}`,
       file,
       previewUrl: URL.createObjectURL(file),
       imageType: "process",
+      isRepresentative: !hasRepresentative && index === 0,
     }));
 
     previewUrlsRef.current = nextImages.map((image) => image.previewUrl);
@@ -103,6 +105,15 @@ export function WashImageManager({
   function updateSelectedImageType(id: string, imageType: WashImageType) {
     setSelectedImages((current) =>
       current.map((image) => (image.id === id ? { ...image, imageType } : image)),
+    );
+  }
+
+  function markSelectedImageRepresentative(id: string) {
+    setSelectedImages((current) =>
+      current.map((image) => ({
+        ...image,
+        isRepresentative: image.id === id,
+      })),
     );
   }
 
@@ -151,70 +162,24 @@ export function WashImageManager({
       return;
     }
 
-    const uploadedImages: WashImage[] = [];
-
-    for (const [index, selectedImage] of selectedImages.entries()) {
-      const objectPath = createWashImageObjectPath({
+    try {
+      const uploadedImages = await uploadWashImagesForLog(supabase, {
         userId,
         washLogId,
-        fileName: selectedImage.file.name,
+        images: selectedImages,
+        hasRepresentative,
       });
 
-      const { error: uploadError } = await supabase.storage
-        .from(WASH_IMAGE_BUCKET)
-        .upload(objectPath, selectedImage.file, {
-          contentType: selectedImage.file.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        setErrorMessage(uploadError.message);
-        setIsUploading(false);
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(WASH_IMAGE_BUCKET)
-        .getPublicUrl(objectPath);
-      const { data: signedUrlData } = await supabase.storage
-        .from(WASH_IMAGE_BUCKET)
-        .createSignedUrl(objectPath, 60 * 60);
-
-      const shouldBeRepresentative = !hasRepresentative && index === 0;
-      const { data: insertedImage, error: insertError } = await supabase
-        .from("wash_images")
-        .insert({
-          wash_log_id: washLogId,
-          image_url: publicUrlData.publicUrl,
-          image_type: selectedImage.imageType,
-          is_representative: shouldBeRepresentative,
-        })
-        .select("id,wash_log_id,image_url,image_type,is_representative,created_at")
-        .single();
-
-      if (insertError) {
-        await supabase.storage.from(WASH_IMAGE_BUCKET).remove([objectPath]);
-        setErrorMessage(insertError.message);
-        setIsUploading(false);
-        return;
-      }
-
-      uploadedImages.push({
-        id: insertedImage.id,
-        washLogId: insertedImage.wash_log_id,
-        imageUrl: signedUrlData?.signedUrl ?? insertedImage.image_url,
-        imageType: insertedImage.image_type,
-        isRepresentative: insertedImage.is_representative,
-        createdAt: insertedImage.created_at,
-      });
+      previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+      previewUrlsRef.current = [];
+      setSelectedImages([]);
+      setImages((current) => [...uploadedImages, ...current]);
+      setIsUploading(false);
+      router.refresh();
+    } catch (uploadError) {
+      setErrorMessage(uploadError instanceof Error ? uploadError.message : "이미지 업로드에 실패했습니다.");
+      setIsUploading(false);
     }
-
-    previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-    previewUrlsRef.current = [];
-    setSelectedImages([]);
-    setImages((current) => [...uploadedImages, ...current]);
-    setIsUploading(false);
-    router.refresh();
   }
 
   async function handleDelete(image: WashImage) {
@@ -235,7 +200,7 @@ export function WashImageManager({
       return;
     }
 
-    const objectPath = getWashImageStoragePath(image.imageUrl);
+    const objectPath = image.objectPath || getWashImageStoragePath(image.imageUrl);
 
     if (!objectPath) {
       setErrorMessage("이미지의 스토리지 경로를 찾지 못했습니다.");
@@ -366,19 +331,30 @@ export function WashImageManager({
                 </div>
                 <div className="p-3">
                   <p className="truncate text-sm font-semibold">{image.file.name}</p>
-                  <select
-                    className="mt-3 h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
-                    value={image.imageType}
-                    onChange={(event) =>
-                      updateSelectedImageType(image.id, event.target.value as WashImageType)
-                    }
-                  >
-                    {imageTypeOptions.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="mt-3 grid gap-2">
+                    <select
+                      className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
+                      value={image.imageType}
+                      onChange={(event) =>
+                        updateSelectedImageType(image.id, event.target.value as WashImageType)
+                      }
+                    >
+                      {imageTypeOptions.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-semibold transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                      type="button"
+                      onClick={() => markSelectedImageRepresentative(image.id)}
+                      disabled={image.isRepresentative}
+                    >
+                      <Star className="h-4 w-4" aria-hidden="true" />
+                      {image.isRepresentative ? "대표 이미지" : "대표로 지정"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

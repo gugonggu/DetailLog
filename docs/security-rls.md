@@ -71,7 +71,7 @@ using (
 );
 ```
 
-`wash-images` bucket은 public bucket입니다. 비공개 기록의 이미지 URL을 아는 사용자가 객체에 직접 접근할 수 있으므로, 비공개 이미지 보호가 필요해지면 private bucket과 signed URL 발급 방식으로 전환해야 합니다.
+`wash-images` bucket은 private bucket입니다. DB에는 Storage object path를 저장하고, 화면에서는 서버가 발급한 signed URL만 사용합니다. Storage select 정책은 본인 이미지 또는 공개 wash log에 연결된 이미지만 읽을 수 있도록 제한합니다.
 
 ## Cars
 

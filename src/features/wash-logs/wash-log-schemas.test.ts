@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createWashLogInsertPayload,
+  createWashLogRpcPayload,
   createWashLogUpdatePayload,
   isOwnedCarId,
   mapWashLogRowToWashLog,
@@ -175,6 +176,53 @@ describe("wash log schemas", () => {
     ]);
   });
 
+  it("prepares RPC payloads for atomic create and update operations", () => {
+    const values = {
+      carId: "car-id",
+      title: "  Atomic wash  ",
+      washDate: "2026-05-20",
+      location: "",
+      durationMinutes: 75,
+      cost: 15000,
+      weather: "",
+      dirtLevel: 2,
+      satisfaction: 4,
+      memo: "",
+      visibility: "public" as const,
+      steps: [
+        {
+          stepType: "Contact wash",
+          productName: "Shampoo",
+          memo: "",
+          stepOrder: 1,
+        },
+      ],
+    };
+
+    expect(createWashLogRpcPayload({ userId: "user-id", values })).toEqual({
+      p_user_id: "user-id",
+      p_car_id: "car-id",
+      p_title: "Atomic wash",
+      p_wash_date: "2026-05-20",
+      p_location: null,
+      p_duration_minutes: 75,
+      p_cost: 15000,
+      p_weather: null,
+      p_dirt_level: 2,
+      p_satisfaction: 4,
+      p_memo: null,
+      p_visibility: "public",
+      p_steps: [
+        {
+          step_type: "Contact wash",
+          product_name: "Shampoo",
+          memo: null,
+          step_order: 1,
+        },
+      ],
+    });
+  });
+
   it("accepts only car ids from the signed-in user's scoped car options", () => {
     const cars = [{ id: "owned-car-id" }, { id: "second-owned-car-id" }];
 
@@ -266,6 +314,7 @@ describe("wash log schemas", () => {
         {
           id: "image-id",
           washLogId: "wash-log-id",
+          objectPath: "user-id/wash-log-id/file.jpg",
           imageUrl:
             "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
           imageType: "before",
