@@ -2,6 +2,7 @@ import type { WashImage, WashImageRow, WashImageType } from "./types";
 
 export const WASH_IMAGE_BUCKET = "wash-images";
 export const WASH_IMAGE_SIGNED_URL_EXPIRES_IN = 60 * 60;
+export const WASH_STEP_IMAGE_MAX_COUNT = 3;
 
 type WashImageObjectPathInput = {
   userId: string;
@@ -48,6 +49,7 @@ type WashImageUploadSupabaseClient = {
   from: (table: string) => {
     insert: (row: {
       wash_log_id: string;
+      wash_step_id: string | null;
       object_path: string;
       image_url: string;
       image_type: WashImageType;
@@ -95,6 +97,7 @@ export type PendingWashImageUpload = {
   file: File;
   imageType: WashImageType;
   isRepresentative: boolean;
+  washStepId?: string | null;
 };
 
 type UploadWashImagesForLogInput = {
@@ -210,6 +213,21 @@ export async function uploadWashImagesForLog(
     randomId = () => crypto.randomUUID(),
   }: UploadWashImagesForLogInput,
 ) {
+  const stepImageCounts = new Map<string, number>();
+
+  for (const image of images) {
+    if (!image.washStepId) {
+      continue;
+    }
+
+    const nextCount = (stepImageCounts.get(image.washStepId) ?? 0) + 1;
+    stepImageCounts.set(image.washStepId, nextCount);
+
+    if (nextCount > WASH_STEP_IMAGE_MAX_COUNT) {
+      throw new Error("단계별 사진은 최대 3장까지 추가할 수 있습니다.");
+    }
+  }
+
   const uploadedImages: WashImage[] = [];
   const uploadedObjectPaths: string[] = [];
   const insertedImageIds: string[] = [];
@@ -245,18 +263,21 @@ export async function uploadWashImagesForLog(
       .from(WASH_IMAGE_BUCKET)
       .createSignedUrl(objectPath, WASH_IMAGE_SIGNED_URL_EXPIRES_IN);
 
+    const canBeRepresentative = !image.washStepId;
     const shouldBeRepresentative =
-      image.isRepresentative || (!hasRepresentative && !hasSelectedRepresentative && index === 0);
+      canBeRepresentative &&
+      (image.isRepresentative || (!hasRepresentative && !hasSelectedRepresentative && index === 0));
     const { data: insertedImage, error: insertError } = await supabase
       .from("wash_images")
       .insert({
         wash_log_id: washLogId,
+        wash_step_id: image.washStepId ?? null,
         object_path: objectPath,
         image_url: objectPath,
         image_type: image.imageType,
         is_representative: shouldBeRepresentative,
       })
-      .select("id,wash_log_id,object_path,image_url,image_type,is_representative,created_at")
+      .select("id,wash_log_id,wash_step_id,object_path,image_url,image_type,is_representative,created_at")
       .single();
 
     if (insertError || !insertedImage) {
@@ -282,6 +303,7 @@ export function mapWashImageRowToWashImage(row: WashImageRow): WashImage {
   return {
     id: row.id,
     washLogId: row.wash_log_id,
+    washStepId: row.wash_step_id ?? null,
     objectPath: row.object_path ?? getWashImageStoragePath(row.image_url),
     imageUrl: row.image_url,
     imageType: row.image_type,

@@ -124,6 +124,7 @@ describe("wash image service", () => {
     expect(image).toEqual({
       id: "image-id",
       washLogId: "wash-log-id",
+      washStepId: null,
       imageUrl:
         "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
       objectPath: "user-id/wash-log-id/file.jpg",
@@ -222,7 +223,7 @@ describe("wash image service", () => {
                         wash_log_id: "wash-log-id",
                         object_path: `user-id/wash-log-id/177914520000${insertCount}-mock-id.jpg`,
                         image_url: `user-id/wash-log-id/177914520000${insertCount}-mock-id.jpg`,
-                        image_type: insertCount === 1 ? "before" : "after",
+                        image_type: insertCount === 1 ? ("before" as const) : ("after" as const),
                         is_representative: insertCount === 2,
                         created_at: "2026-06-16T00:00:00.000Z",
                       },
@@ -270,6 +271,7 @@ describe("wash image service", () => {
     expect(insertedRows).toEqual([
       {
         wash_log_id: "wash-log-id",
+        wash_step_id: null,
         object_path: "user-id/wash-log-id/1779145200000-mock-id.jpg",
         image_url: "user-id/wash-log-id/1779145200000-mock-id.jpg",
         image_type: "before",
@@ -277,6 +279,7 @@ describe("wash image service", () => {
       },
       {
         wash_log_id: "wash-log-id",
+        wash_step_id: null,
         object_path: "user-id/wash-log-id/1779145200000-mock-id.jpg",
         image_url: "user-id/wash-log-id/1779145200000-mock-id.jpg",
         image_type: "after",
@@ -285,5 +288,144 @@ describe("wash image service", () => {
     ]);
     expect(images).toHaveLength(2);
     expect(images[1].isRepresentative).toBe(true);
+  });
+
+  it("stores the selected wash step id for step images", async () => {
+    const insertedRows: unknown[] = [];
+    const supabase = {
+      storage: {
+        from() {
+          return {
+            upload() {
+              return Promise.resolve({ error: null });
+            },
+            createSignedUrl() {
+              return Promise.resolve({ data: null, error: null });
+            },
+            remove() {
+              return Promise.resolve({ error: null });
+            },
+          };
+        },
+      },
+      from() {
+        return {
+          insert(row: unknown) {
+            insertedRows.push(row);
+
+            return {
+              select() {
+                return {
+                  single() {
+                    return Promise.resolve({
+                      data: {
+                        id: "image-id",
+                        wash_log_id: "wash-log-id",
+                        wash_step_id: "step-id",
+                        object_path: "user-id/wash-log-id/file.jpg",
+                        image_url: "user-id/wash-log-id/file.jpg",
+                        image_type: "process" as const,
+                        is_representative: false,
+                        created_at: "2026-06-16T00:00:00.000Z",
+                      },
+                      error: null,
+                    });
+                  },
+                };
+              },
+            };
+          },
+          delete() {
+            return {
+              in() {
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      },
+    };
+
+    const [image] = await uploadWashImagesForLog(supabase, {
+      userId: "user-id",
+      washLogId: "wash-log-id",
+      images: [
+        {
+          file: { name: "step.jpg", type: "image/jpeg" } as File,
+          imageType: "process",
+          isRepresentative: false,
+          washStepId: "step-id",
+        },
+      ],
+      timestamp: 1779145200000,
+      randomId: () => "mock-id",
+    });
+
+    expect(insertedRows).toEqual([
+      {
+        wash_log_id: "wash-log-id",
+        wash_step_id: "step-id",
+        object_path: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_url: "user-id/wash-log-id/1779145200000-mock-id.jpg",
+        image_type: "process",
+        is_representative: false,
+      },
+    ]);
+    expect(image.washStepId).toBe("step-id");
+  });
+
+  it("rejects more than three selected images for one wash step", async () => {
+    const supabase = {
+      storage: {
+        from() {
+          return {
+            upload() {
+              return Promise.resolve({ error: null });
+            },
+            createSignedUrl() {
+              return Promise.resolve({ data: null, error: null });
+            },
+            remove() {
+              return Promise.resolve({ error: null });
+            },
+          };
+        },
+      },
+      from() {
+        return {
+          insert() {
+            return {
+              select() {
+                return {
+                  single() {
+                    return Promise.resolve({ data: null, error: null });
+                  },
+                };
+              },
+            };
+          },
+          delete() {
+            return {
+              in() {
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
+        };
+      },
+    };
+
+    await expect(
+      uploadWashImagesForLog(supabase, {
+        userId: "user-id",
+        washLogId: "wash-log-id",
+        images: [1, 2, 3, 4].map((index) => ({
+          file: { name: `step-${index}.jpg`, type: "image/jpeg" } as File,
+          imageType: "process" as const,
+          isRepresentative: false,
+          washStepId: "step-id",
+        })),
+      }),
+    ).rejects.toThrow("단계별 사진은 최대 3장까지 추가할 수 있습니다.");
   });
 });

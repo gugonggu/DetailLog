@@ -268,6 +268,7 @@ describe("wash log schemas", () => {
         {
           id: "image-id",
           wash_log_id: "wash-log-id",
+          wash_step_id: null,
           image_url:
             "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",
           image_type: "before",
@@ -314,6 +315,7 @@ describe("wash log schemas", () => {
         {
           id: "image-id",
           washLogId: "wash-log-id",
+          washStepId: null,
           objectPath: "user-id/wash-log-id/file.jpg",
           imageUrl:
             "https://example.supabase.co/storage/v1/object/public/wash-images/user-id/wash-log-id/file.jpg",

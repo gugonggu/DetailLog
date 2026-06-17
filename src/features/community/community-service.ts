@@ -11,10 +11,10 @@ import type {
 } from "./types";
 
 export const communityFeedSelect =
-  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_images(id,wash_log_id,object_path,image_url,image_type,is_representative,created_at)";
+  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_images(id,wash_log_id,wash_step_id,object_path,image_url,image_type,is_representative,created_at)";
 
 export const communityDetailSelect =
-  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,object_path,image_url,image_type,is_representative,created_at)";
+  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,wash_step_id,object_path,image_url,image_type,is_representative,created_at)";
 
 export function createProfileMap(profiles: CommunityProfileRow[]) {
   return new Map(profiles.map((profile) => [profile.id, profile]));

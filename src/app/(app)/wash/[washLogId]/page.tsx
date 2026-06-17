@@ -25,7 +25,7 @@ type WashLogDetailPageProps = {
 };
 
 const washLogSelect =
-  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,object_path,image_url,image_type,is_representative,created_at)";
+  "id,user_id,car_id,title,wash_date,location,duration_minutes,cost,weather,dirt_level,satisfaction,memo,visibility,created_at,updated_at,cars(id,name,brand,model),wash_steps(id,wash_log_id,step_type,product_name,memo,step_order,created_at),wash_images(id,wash_log_id,wash_step_id,object_path,image_url,image_type,is_representative,created_at)";
 
 const imageTypeLabels = {
   before: "세차 전",
@@ -78,6 +78,7 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
 
   const washLog = data ? mapWashLogRowToWashLog(data as WashLogRow) : null;
   const signedImages = washLog ? await signWashImages(supabase, washLog.images) : [];
+  const logImages = signedImages.filter((image) => !image.washStepId);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8">
@@ -190,13 +191,13 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
               </Link>
             </div>
 
-            {signedImages.length === 0 ? (
+            {logImages.length === 0 ? (
               <div className="mt-5 rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
                 아직 등록된 세차 이미지가 없습니다.
               </div>
             ) : (
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {signedImages.map((image) => (
+                {logImages.map((image) => (
                   <article className="overflow-hidden rounded-md border border-border" key={image.id}>
                     <div className="relative aspect-[4/3] bg-muted">
                       <Image
@@ -227,18 +228,40 @@ export default async function WashLogDetailPage({ params }: WashLogDetailPagePro
           <section className="mt-6 rounded-md border border-border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">세차 단계</h2>
             <div className="mt-5 space-y-4">
-              {washLog.steps.map((step) => (
-                <div className="rounded-md border border-border p-4" key={step.id}>
-                  <p className="text-sm font-semibold text-primary">단계 {step.stepOrder}</p>
-                  <h3 className="mt-2 text-lg font-semibold">{step.stepType}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    제품: {step.productName ?? "입력 없음"}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                    {step.memo || "단계 메모가 없습니다."}
-                  </p>
-                </div>
-              ))}
+              {washLog.steps.map((step) => {
+                const stepImages = signedImages.filter((image) => image.washStepId === step.id);
+
+                return (
+                  <div className="rounded-md border border-border p-4" key={step.id}>
+                    <p className="text-sm font-semibold text-primary">단계 {step.stepOrder}</p>
+                    <h3 className="mt-2 text-lg font-semibold">{step.stepType}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      제품: {step.productName ?? "입력 없음"}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                      {step.memo || "단계 메모가 없습니다."}
+                    </p>
+                    {stepImages.length > 0 ? (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {stepImages.map((image) => (
+                          <div className="overflow-hidden rounded-md border border-border" key={image.id}>
+                            <div className="relative aspect-[4/3] bg-muted">
+                              <Image
+                                src={image.imageUrl}
+                                alt={`${step.stepType} 단계 이미지`}
+                                fill
+                                className="object-cover"
+                                sizes="(min-width: 1024px) 28vw, (min-width: 640px) 42vw, 86vw"
+                                unoptimized
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </section>
         </>

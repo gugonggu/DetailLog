@@ -21,6 +21,7 @@ import {
 import {
   type PendingWashImageUpload,
   uploadWashImagesForLog,
+  WASH_STEP_IMAGE_MAX_COUNT,
 } from "@/features/wash-images/wash-image-service";
 import type { WashImageType } from "@/features/wash-images/types";
 
@@ -50,6 +51,11 @@ type WashLogFormProps = {
 type SelectedFormImage = PendingWashImageUpload & {
   id: string;
   previewUrl: string;
+};
+
+type WashStepIdRow = {
+  id: string;
+  step_order: number;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -94,6 +100,9 @@ export function WashLogForm({
   const [formError, setFormError] = useState("");
   const [imageError, setImageError] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedFormImage[]>([]);
+  const [selectedStepImagesByFieldId, setSelectedStepImagesByFieldId] = useState<
+    Record<string, SelectedFormImage[]>
+  >({});
   const previewUrlsRef = useRef<string[]>([]);
 
   const {
@@ -124,24 +133,64 @@ export function WashLogForm({
       .find((result) => !result.valid);
 
     if (invalidFile && !invalidFile.valid) {
-      setSelectedImages([]);
       setImageError(invalidFile.error);
       event.target.value = "";
       return;
     }
 
-    previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-
     const nextImages: SelectedFormImage[] = selectedFiles.map((file, index) => ({
-      id: `${file.name}-${file.lastModified}-${file.size}`,
+      id: `${file.name}-${file.lastModified}-${file.size}-${crypto.randomUUID()}`,
       file,
-      imageType: index === 0 ? "before" : "process",
-      isRepresentative: index === 0,
+      imageType: selectedImages.length === 0 && index === 0 ? "before" : "process",
+      isRepresentative: selectedImages.length === 0 && index === 0,
       previewUrl: URL.createObjectURL(file),
     }));
 
-    previewUrlsRef.current = nextImages.map((image) => image.previewUrl);
-    setSelectedImages(nextImages);
+    previewUrlsRef.current = [
+      ...previewUrlsRef.current,
+      ...nextImages.map((image) => image.previewUrl),
+    ];
+    setSelectedImages((current) => [...current, ...nextImages]);
+    setImageError("");
+    event.target.value = "";
+  }
+
+  function handleSelectStepImages(fieldId: string, event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const currentImages = selectedStepImagesByFieldId[fieldId] ?? [];
+
+    if (currentImages.length + selectedFiles.length > WASH_STEP_IMAGE_MAX_COUNT) {
+      setImageError(`단계별 사진은 최대 ${WASH_STEP_IMAGE_MAX_COUNT}장까지 추가할 수 있습니다.`);
+      event.target.value = "";
+      return;
+    }
+
+    const invalidFile = selectedFiles
+      .map((file) => validateImageUploadFile(file, WASH_IMAGE_MAX_SIZE_BYTES))
+      .find((result) => !result.valid);
+
+    if (invalidFile && !invalidFile.valid) {
+      setImageError(invalidFile.error);
+      event.target.value = "";
+      return;
+    }
+
+    const nextImages: SelectedFormImage[] = selectedFiles.map((file) => ({
+      id: `${file.name}-${file.lastModified}-${file.size}-${crypto.randomUUID()}`,
+      file,
+      imageType: "process",
+      isRepresentative: false,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    previewUrlsRef.current = [
+      ...previewUrlsRef.current,
+      ...nextImages.map((image) => image.previewUrl),
+    ];
+    setSelectedStepImagesByFieldId((current) => ({
+      ...current,
+      [fieldId]: [...(current[fieldId] ?? []), ...nextImages],
+    }));
     setImageError("");
     event.target.value = "";
   }
@@ -159,6 +208,55 @@ export function WashLogForm({
         isRepresentative: image.id === id,
       })),
     );
+  }
+
+  function removeSelectedImage(id: string) {
+    setSelectedImages((current) => {
+      const image = current.find((item) => item.id === id);
+
+      if (image) {
+        URL.revokeObjectURL(image.previewUrl);
+        previewUrlsRef.current = previewUrlsRef.current.filter(
+          (previewUrl) => previewUrl !== image.previewUrl,
+        );
+      }
+
+      return current.filter((item) => item.id !== id);
+    });
+  }
+
+  function removeSelectedStepImage(fieldId: string, id: string) {
+    setSelectedStepImagesByFieldId((current) => {
+      const currentImages = current[fieldId] ?? [];
+      const image = currentImages.find((item) => item.id === id);
+
+      if (image) {
+        URL.revokeObjectURL(image.previewUrl);
+        previewUrlsRef.current = previewUrlsRef.current.filter(
+          (previewUrl) => previewUrl !== image.previewUrl,
+        );
+      }
+
+      return {
+        ...current,
+        [fieldId]: currentImages.filter((item) => item.id !== id),
+      };
+    });
+  }
+
+  function removeStep(index: number, fieldId: string) {
+    const stepImages = selectedStepImagesByFieldId[fieldId] ?? [];
+
+    stepImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    previewUrlsRef.current = previewUrlsRef.current.filter(
+      (previewUrl) => !stepImages.some((image) => image.previewUrl === previewUrl),
+    );
+    setSelectedStepImagesByFieldId((current) => {
+      const { [fieldId]: _removedImages, ...remainingImages } = current;
+
+      return remainingImages;
+    });
+    remove(index);
   }
 
   async function onSubmit(values: WashLogFormValues) {
@@ -191,12 +289,58 @@ export function WashLogForm({
         return;
       }
 
-      if (selectedImages.length > 0) {
+      const selectedStepImageEntries = values.steps.flatMap((_, index) => {
+        const fieldId = fields[index]?.id;
+
+        return fieldId
+          ? (selectedStepImagesByFieldId[fieldId] ?? []).map((image) => ({
+              image,
+              stepOrder: index + 1,
+            }))
+          : [];
+      });
+
+      if (selectedImages.length > 0 || selectedStepImageEntries.length > 0) {
         try {
+          const stepIdByOrder = new Map<number, string>();
+
+          if (selectedStepImageEntries.length > 0) {
+            const { data: stepRows, error: stepError } = await supabase
+              .from("wash_steps")
+              .select("id,step_order")
+              .eq("wash_log_id", data)
+              .order("step_order");
+
+            if (stepError) {
+              throw new Error(stepError.message);
+            }
+
+            (stepRows as WashStepIdRow[] | null)?.forEach((step) => {
+              stepIdByOrder.set(step.step_order, step.id);
+            });
+          }
+
+          const stepImages: PendingWashImageUpload[] = selectedStepImageEntries.map(
+            ({ image, stepOrder }) => {
+              const washStepId = stepIdByOrder.get(stepOrder);
+
+              if (!washStepId) {
+                throw new Error("단계 사진을 연결할 세차 단계 정보를 찾지 못했습니다.");
+              }
+
+              return {
+                file: image.file,
+                imageType: image.imageType,
+                isRepresentative: false,
+                washStepId,
+              };
+            },
+          );
+
           await uploadWashImagesForLog(supabase, {
             userId,
             washLogId: data,
-            images: selectedImages,
+            images: [...selectedImages, ...stepImages],
           });
         } catch (uploadError) {
           await supabase.from("wash_logs").delete().eq("id", data).eq("user_id", userId);
@@ -384,7 +528,7 @@ export function WashLogForm({
                 <button
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   type="button"
-                  onClick={() => remove(index)}
+                  onClick={() => removeStep(index, field.id)}
                   disabled={fields.length === 1}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -417,6 +561,59 @@ export function WashLogForm({
                 <p className="mt-2 text-sm text-red-700">
                   {errors.steps[index]?.memo?.message}
                 </p>
+              ) : null}
+              {mode === "create" ? (
+                <div className="mt-4 border-t border-border pt-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold">단계 사진</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        단계별로 최대 {WASH_STEP_IMAGE_MAX_COUNT}장까지 추가할 수 있습니다.
+                      </p>
+                    </div>
+                    <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-semibold shadow-sm transition hover:border-primary">
+                      <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                      사진 추가
+                      <input
+                        className="sr-only"
+                        type="file"
+                        accept={IMAGE_UPLOAD_ACCEPT}
+                        multiple
+                        onChange={(event) => handleSelectStepImages(field.id, event)}
+                        disabled={isSubmitting}
+                      />
+                    </label>
+                  </div>
+                  {(selectedStepImagesByFieldId[field.id] ?? []).length > 0 ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {(selectedStepImagesByFieldId[field.id] ?? []).map((image) => (
+                        <div className="overflow-hidden rounded-md border border-border bg-white" key={image.id}>
+                          <div className="relative aspect-[4/3] bg-muted">
+                            <Image
+                              src={image.previewUrl}
+                              alt={image.file.name}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-2 p-2">
+                            <p className="truncate text-xs font-semibold">{image.file.name}</p>
+                            <button
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-200 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              type="button"
+                              onClick={() => removeSelectedStepImage(field.id, image.id)}
+                              disabled={isSubmitting}
+                              aria-label="단계 사진 삭제"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ))}
@@ -461,6 +658,15 @@ export function WashLogForm({
                   </div>
                   <div className="grid gap-2 p-3">
                     <p className="truncate text-sm font-semibold">{image.file.name}</p>
+                    <button
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      onClick={() => removeSelectedImage(image.id)}
+                      disabled={isSubmitting}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      삭제
+                    </button>
                     <select
                       className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm outline-none transition focus:border-primary"
                       value={image.imageType}
